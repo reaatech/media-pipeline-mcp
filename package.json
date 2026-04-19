@@ -14,7 +14,7 @@
     "format": "prettier --write \"packages/**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"packages/**/*.{ts,tsx,json}\"",
     "typecheck": "pnpm -r run typecheck",
-    "clean": "pnpm -r clean",
+    "clean": "pnpm -r clean && find packages -name 'tsconfig.tsbuildinfo' -delete",
     "sbom": "cyclonedx-npm --output-format JSON --output-file sbom.json",
     "prepare": "husky"
   },

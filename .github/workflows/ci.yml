@@ -57,6 +57,9 @@ jobs:
         env:
           SKIP_SLACK: true
 
+      - name: Run build
+        run: pnpm build
+
       - name: Run typecheck
         run: pnpm typecheck
 
@@ -79,6 +82,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env:
           SKIP_SLACK: true
+
+      - name: Run build
+        run: pnpm build
 
       - name: Run tests
         run: pnpm test
