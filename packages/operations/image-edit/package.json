@@ -1,0 +1,36 @@
+{
+  "name": "@media-pipeline/image-edit",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@media-pipeline/core": "workspace:*",
+    "@media-pipeline/provider-core": "workspace:^",
+    "@media-pipeline/storage": "workspace:*",
+    "sharp": "^0.34.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "4.1.4",
+    "@types/sharp": "^0.32.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.4"
+  }
+}
