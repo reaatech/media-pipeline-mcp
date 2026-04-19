@@ -1,0 +1,34 @@
+{
+  "name": "@media-pipeline/storage",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0",
+    "@aws-sdk/s3-request-presigner": "^3.1032.0",
+    "@google-cloud/storage": "^7.19.0",
+    "@media-pipeline/core": "workspace:*",
+    "@smithy/protocol-http": "^5.3.14",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@vitest/coverage-v8": "4.1.4",
+    "vitest": "4.1.4"
+  }
+}
