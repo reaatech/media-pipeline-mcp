@@ -21,14 +21,12 @@
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^3.0.0",
-    "@google-cloud/documentai": "^4.0.0"
+    "@google-cloud/documentai": "^4.0.0",
+    "@media-pipeline/provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3",
     "vitest": "^4.1.4"
-  },
-  "peerDependencies": {
-    "@media-pipeline/provider-core": "workspace:*"
   }
 }

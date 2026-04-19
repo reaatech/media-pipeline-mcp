@@ -20,14 +20,12 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@fal-ai/client": "^1.9.5"
+    "@fal-ai/client": "^1.9.5",
+    "@media-pipeline/provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3",
     "vitest": "^4.1.4"
-  },
-  "peerDependencies": {
-    "@media-pipeline/provider-core": "workspace:*"
   }
 }
