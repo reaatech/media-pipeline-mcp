@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    { "path": "../providers/anthropic" },
+    { "path": "../providers/deepgram" },
+    { "path": "../providers/elevenlabs" },
+    { "path": "../providers/fal" },
+    { "path": "../providers/google" },
+    { "path": "../providers/openai" },
+    { "path": "../providers/replicate" },
+    { "path": "../providers/stability" },
+    { "path": "../core" },
+    { "path": "../security" },
+    { "path": "../storage" }
+  ]
+}

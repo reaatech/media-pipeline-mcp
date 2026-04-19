@@ -1,0 +1,45 @@
+{
+  "name": "@media-pipeline/server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "media-pipeline-mcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@media-pipeline/core": "workspace:*",
+    "@media-pipeline/security": "workspace:*",
+    "@media-pipeline/storage": "workspace:*",
+    "@media-pipeline/anthropic": "workspace:*",
+    "@media-pipeline/deepgram": "workspace:*",
+    "@media-pipeline/elevenlabs": "workspace:*",
+    "@media-pipeline/fal": "workspace:*",
+    "@media-pipeline/google": "workspace:*",
+    "@media-pipeline/openai": "workspace:*",
+    "@media-pipeline/replicate": "workspace:*",
+    "@media-pipeline/stability": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@vitest/coverage-v8": "4.1.4",
+    "vitest": "4.1.4"
+  }
+}
