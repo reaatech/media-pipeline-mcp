@@ -213,7 +213,9 @@ export class PipelineExecutor {
     const resumeStepIndex = pipeline.steps.findIndex((s) => s.id === resumeStepId);
 
     if (!resumeStepId || resumeStepIndex === -1) {
-      throw new Error(`${resumeStepLabel[0].toUpperCase() + resumeStepLabel.slice(1)} step not found`);
+      throw new Error(
+        `${resumeStepLabel[0].toUpperCase() + resumeStepLabel.slice(1)} step not found`
+      );
     }
 
     if (action === 'skip') {

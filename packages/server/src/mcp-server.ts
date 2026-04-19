@@ -291,9 +291,14 @@ export class MCPServer {
       const { name, arguments: args } = request.params;
 
       const authContext = extra?.authInfo as AuthContext | undefined;
-      if (this.authMiddleware && (!authContext || !this.authMiddleware.canPerformOperation(authContext, name))) {
+      if (
+        this.authMiddleware &&
+        (!authContext || !this.authMiddleware.canPerformOperation(authContext, name))
+      ) {
         return {
-          content: [{ type: 'text', text: `Forbidden: insufficient permissions for tool '${name}'` }],
+          content: [
+            { type: 'text', text: `Forbidden: insufficient permissions for tool '${name}'` },
+          ],
           success: false,
           error: 'Forbidden',
         };
