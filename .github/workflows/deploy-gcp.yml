@@ -90,39 +90,44 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  build-and-deploy:
-    needs: [ci, security-scan]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Setup Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
-
-      - name: Build and push Docker image
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}:$IMAGE_TAG .
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}:$IMAGE_TAG
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars NODE_ENV=production
+  # -------------------------------------------------------------------------
+  # DEPLOYMENT JOB — DISABLED BY DEFAULT
+  # This is a public resource repo. Uncomment the block below when you are
+  # ready to deploy to your own GCP project.
+  # -------------------------------------------------------------------------
+  # build-and-deploy:
+  #   needs: [ci, security-scan]
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Authenticate to GCP
+  #       uses: google-github-actions/auth@v2
+  #       with:
+  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
+  #
+  #     - name: Setup Google Cloud SDK
+  #       uses: google-github-actions/setup-gcloud@v2
+  #
+  #     - name: Configure Docker for Artifact Registry
+  #       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+  #
+  #     - name: Build and push Docker image
+  #       env:
+  #         IMAGE_TAG: ${{ github.sha }}
+  #       run: |
+  #         docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}:$IMAGE_TAG .
+  #         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}:$IMAGE_TAG
+  #
+  #     - name: Deploy to Cloud Run
+  #       run: |
+  #         gcloud run deploy ${{ env.SERVICE_NAME }} \
+  #           --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+  #           --region ${{ env.REGION }} \
+  #           --platform managed \
+  #           --allow-unauthenticated \
+  #           --set-env-vars NODE_ENV=production
