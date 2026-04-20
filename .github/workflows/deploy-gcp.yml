@@ -1,13 +1,21 @@
+# ---------------------------------------------------------------------------
+# DEPLOY WORKFLOW — DISABLED
+# This is a public resource repo. Deployment is intentionally disabled.
+# Uncomment the `on` block below when you are ready to deploy to your own
+# GCP project.
+# ---------------------------------------------------------------------------
 name: Deploy to GCP
 
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'packages/**'
+#       - 'Dockerfile'
+#       - '.github/workflows/deploy-gcp.yml'
+#       - 'infra/gcp/**'
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/**'
-      - 'Dockerfile'
-      - '.github/workflows/deploy-gcp.yml'
-      - 'infra/gcp/**'
+  workflow_dispatch:
 
 env:
   REGION: us-central1

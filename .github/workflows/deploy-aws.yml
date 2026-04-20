@@ -1,13 +1,21 @@
+# ---------------------------------------------------------------------------
+# DEPLOY WORKFLOW — DISABLED
+# This is a public resource repo. Deployment is intentionally disabled.
+# Uncomment the `on` block below when you are ready to deploy to your own
+# AWS account.
+# ---------------------------------------------------------------------------
 name: Deploy to AWS
 
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'packages/**'
+#       - 'Dockerfile'
+#       - '.github/workflows/deploy-aws.yml'
+#       - 'infra/aws/**'
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/**'
-      - 'Dockerfile'
-      - '.github/workflows/deploy-aws.yml'
-      - 'infra/aws/**'
+  workflow_dispatch:
 
 env:
   REGION: us-east-1
