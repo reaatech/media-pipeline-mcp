@@ -1,0 +1,74 @@
+version: 2
+updates:
+  # ── npm (pnpm): workspace packages ───────────────────────────────
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/packages/core"
+      - "/packages/server"
+      - "/packages/security"
+      - "/packages/resilience"
+      - "/packages/observability"
+      - "/packages/storage"
+      - "/packages/providers/anthropic"
+      - "/packages/providers/deepgram"
+      - "/packages/providers/elevenlabs"
+      - "/packages/providers/fal"
+      - "/packages/providers/google"
+      - "/packages/providers/openai"
+      - "/packages/providers/provider-core"
+      - "/packages/providers/replicate"
+      - "/packages/providers/stability"
+      - "/packages/operations/audio-gen"
+      - "/packages/operations/document-extraction"
+      - "/packages/operations/image-edit"
+      - "/packages/operations/pipeline"
+      - "/packages/operations/video-gen"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Chicago"
+    versioning-strategy: increase
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor"]
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 15
+
+  # ── GitHub Actions ───────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Chicago"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor"]
+    groups:
+      ci-patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "ci"
