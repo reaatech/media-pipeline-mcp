@@ -1,8 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { Readable } from 'node:stream';
+import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type {
+  ArtifactMeta,
+  ArtifactStore,
+  StorageResult,
+} from '@reaatech/media-pipeline-mcp-storage';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ImageEditOperations } from './image-edit-operations.js';
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta, StorageResult } from '@media-pipeline/storage';
-import { Readable } from 'stream';
 
 // Mock storage that uses the artifact ID directly
 class MockStorage implements ArtifactStore {
@@ -48,7 +52,7 @@ class MockStorage implements ArtifactStore {
 class TestArtifactRegistry extends ArtifactRegistry {
   registerWithId(
     artifact: { type: string; uri: string; mimeType: string; metadata: Record<string, unknown> },
-    id: string
+    id: string,
   ) {
     const fullArtifact = {
       ...artifact,
@@ -106,7 +110,7 @@ describe('ImageEditOperations', () => {
         mimeType: 'image/png',
         metadata: { width, height },
       },
-      id
+      id,
     );
 
     return id;
@@ -157,7 +161,7 @@ describe('ImageEditOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.resize(id, { width: 100 })).rejects.toThrow('is not an image');
@@ -192,11 +196,11 @@ describe('ImageEditOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.crop(id, { x: 0, y: 0, width: 10, height: 10 })).rejects.toThrow(
-        'is not an image'
+        'is not an image',
       );
     });
   });
@@ -231,7 +235,7 @@ describe('ImageEditOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.composite(id, overlayId, {})).rejects.toThrow('Base artifact');
@@ -248,7 +252,7 @@ describe('ImageEditOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.composite(baseId, id, {})).rejects.toThrow('Overlay artifact');

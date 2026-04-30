@@ -1,5 +1,5 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'path';
 
 export default defineConfig({
   test: {
@@ -19,8 +19,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@media-pipeline/core': resolve(__dirname, '../../core/dist'),
-      '@media-pipeline/storage': resolve(__dirname, '../../storage/dist'),
+      '@reaatech/media-pipeline-mcp': resolve(__dirname, '../../core/dist'),
+      '@reaatech/media-pipeline-mcp-storage': resolve(__dirname, '../../storage/dist'),
     },
   },
 });

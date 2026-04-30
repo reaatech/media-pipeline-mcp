@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ProviderRouter, createProviderRouter } from './provider-router.js';
-import type { Provider } from '@media-pipeline/core';
+import type { Provider } from '@reaatech/media-pipeline-mcp';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProviderHealthStatus } from './provider-registry.js';
+import { type ProviderRouter, createProviderRouter } from './provider-router.js';
 
 // Mock provider
 const createMockProvider = (name: string, operations: string[]): Provider => ({
@@ -294,7 +294,7 @@ describe('ProviderRouter', () => {
       const executor = vi.fn().mockResolvedValue('result');
 
       await expect(router.executeWithFallback('unknown.operation', executor)).rejects.toThrow(
-        'No provider available'
+        'No provider available',
       );
     });
   });

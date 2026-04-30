@@ -1,6 +1,7 @@
 {
-  "name": "media-pipeline-mcp",
+  "name": "@reaatech/media-pipeline-mcp",
   "version": "0.1.0",
+  "private": true,
   "description": "Chainable media operations with quality gates as MCP tools",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
   "license": "MIT",
@@ -9,35 +10,31 @@
     "dev": "pnpm -r dev",
     "test": "pnpm -r run test",
     "test:coverage": "pnpm -r run test:coverage",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"packages/**/*.{ts,tsx,json}\"",
-    "format:check": "prettier --check \"packages/**/*.{ts,tsx,json}\"",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "typecheck": "pnpm -r run typecheck",
     "clean": "pnpm -r clean && find packages -name 'tsconfig.tsbuildinfo' -delete",
     "sbom": "cyclonedx-npm --output-format JSON --output-file sbom.json",
-    "prepare": "husky"
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.31.0",
     "@cyclonedx/cyclonedx-npm": "^4.2.1",
-    "@eslint/js": "^10.0.1",
     "@types/uuid": "^9.0.8",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.4",
-    "eslint": "^9.39.4",
-    "eslint-config-prettier": "^9.1.2",
-    "husky": "^9.0.11",
-    "lint-staged": "^15.2.2",
-    "prettier": "^3.2.5",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^8.58.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
   },
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "pnpm@8.15.4",
+  "packageManager": "pnpm@10.22.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/reaatech/media-pipeline-mcp.git"
@@ -46,15 +43,6 @@
     "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
   },
   "homepage": "https://github.com/reaatech/media-pipeline-mcp#readme",
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
-  },
   "dependencies": {
     "uuid": "^9.0.1"
   },

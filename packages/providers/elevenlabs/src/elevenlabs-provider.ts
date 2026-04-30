@@ -1,5 +1,9 @@
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface ElevenLabsProviderConfig {
   apiKey: string;
@@ -152,7 +156,7 @@ export class ElevenLabsProvider extends MediaProvider {
     }
 
     // Check if it's a named voice in our config
-    if (this.config.voices && this.config.voices[voiceName]) {
+    if (this.config.voices?.[voiceName]) {
       return this.config.voices[voiceName] as string;
     }
 

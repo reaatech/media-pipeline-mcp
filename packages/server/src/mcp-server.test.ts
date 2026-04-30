@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MCPServer } from './mcp-server.js';
-import type { ServerConfig } from './config.js';
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ServerConfig } from './config.js';
+import { MCPServer } from './mcp-server.js';
 
 const listenMock = vi.fn((_: number, __: string, cb?: () => void) => cb?.());
 const onMock = vi.fn();
@@ -36,7 +36,7 @@ vi.mock('@modelcontextprotocol/sdk/server/streamableHttp.js', () => {
   };
 });
 
-vi.mock('@media-pipeline/storage', () => ({
+vi.mock('@reaatech/media-pipeline-mcp-storage', () => ({
   createStorage: () => ({
     put: vi.fn().mockResolvedValue('uri'),
     get: vi.fn().mockResolvedValue({
@@ -123,7 +123,7 @@ describe('MCPServer', () => {
             authenticated: true,
             permissions: ['artifact:read'],
           },
-        }
+        },
       );
 
       expect(result.success).toBe(false);

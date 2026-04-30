@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/fal",
+  "name": "@reaatech/media-pipeline-mcp-fal",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -21,11 +21,27 @@
   },
   "dependencies": {
     "@fal-ai/client": "^1.9.5",
-    "@media-pipeline/provider-core": "workspace:*"
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "Fal.ai provider — Fast Flux Pro image generation, Real-ESRGAN upscaling, background removal, Kling video generation",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/providers/fal"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/providers/fal#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

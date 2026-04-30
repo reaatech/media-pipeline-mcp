@@ -1,9 +1,9 @@
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { Artifact } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta } from '@media-pipeline/storage';
-import type { MediaProvider, ProviderInput } from '@media-pipeline/provider-core';
+import type { Readable } from 'node:stream';
+import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { Artifact } from '@reaatech/media-pipeline-mcp';
+import type { MediaProvider, ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { v4 as uuidv4 } from 'uuid';
-import { Readable } from 'stream';
 
 export interface OCRConfig {
   artifactId: string;
@@ -42,7 +42,7 @@ export class DocumentExtractionOperations {
 
   constructor(
     private artifactRegistry: ArtifactRegistry,
-    private storage: ArtifactStore
+    private storage: ArtifactStore,
   ) {}
 
   /**
@@ -434,7 +434,7 @@ export class DocumentExtractionOperations {
 
 export function createDocumentExtractionOperations(
   artifactRegistry: ArtifactRegistry,
-  storage: ArtifactStore
+  storage: ArtifactStore,
 ): DocumentExtractionOperations {
   return new DocumentExtractionOperations(artifactRegistry, storage);
 }

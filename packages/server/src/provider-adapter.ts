@@ -1,4 +1,4 @@
-import type { Provider, Artifact } from '@media-pipeline/core';
+import type { Artifact, Provider } from '@reaatech/media-pipeline-mcp';
 
 export class ProviderAdapter implements Provider {
   readonly name: string;
@@ -6,7 +6,7 @@ export class ProviderAdapter implements Provider {
   private executeFn: (
     operation: string,
     inputs: Record<string, unknown>,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ) => Promise<{
     data: Buffer | ReadableStream;
     mimeType: string;
@@ -22,7 +22,7 @@ export class ProviderAdapter implements Provider {
     execute: (
       operation: string,
       inputs: Record<string, unknown>,
-      config: Record<string, unknown>
+      config: Record<string, unknown>,
     ) => Promise<{
       data: Buffer | ReadableStream;
       mimeType: string;
@@ -41,7 +41,7 @@ export class ProviderAdapter implements Provider {
   async execute(
     operation: string,
     inputs: Record<string, unknown>,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): Promise<{
     data?: Buffer | NodeJS.ReadableStream;
     artifact: Omit<Artifact, 'id' | 'createdAt'>;
@@ -74,7 +74,7 @@ export class ProviderAdapter implements Provider {
   private inferArtifactType(
     operation: string,
     mimeType: string,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
   ): Artifact['type'] {
     const explicitType = metadata.type;
     if (

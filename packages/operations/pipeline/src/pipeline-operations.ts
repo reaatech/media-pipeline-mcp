@@ -1,5 +1,10 @@
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { Artifact, Pipeline, PipelineStep, PipelineStatus } from '@media-pipeline/core';
+import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type {
+  Artifact,
+  Pipeline,
+  PipelineStatus,
+  PipelineStep,
+} from '@reaatech/media-pipeline-mcp';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface PipelineTemplate {
@@ -177,7 +182,7 @@ export class PipelineOperations {
 
   interpolateVariables(
     template: PipelineTemplate,
-    variables: Record<string, string>
+    variables: Record<string, string>,
   ): PipelineStep[] {
     const steps: PipelineStep[] = [];
 
@@ -198,7 +203,7 @@ export class PipelineOperations {
           /\{\{step(\d+)\.output\}\}/g,
           (_match: string, stepNum: string) => {
             return `{{step${stepNum}.output}}`;
-          }
+          },
         );
         interpolatedInputs[inputKey] = interpolated;
       }
@@ -291,7 +296,7 @@ export class PipelineOperations {
         // Handle {{stepN.output}} references
         const refMatch = value.match(/\{\{step(\d+)\.output\}\}/);
         if (refMatch) {
-          const stepIndex = parseInt(refMatch[1]) - 1;
+          const stepIndex = Number.parseInt(refMatch[1]) - 1;
           if (stepIndex >= 0 && stepIndex < artifacts.length) {
             interpolated = artifacts[stepIndex].id;
           }

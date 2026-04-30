@@ -1,4 +1,4 @@
-import type { CostRecord, CostSummary } from '@media-pipeline/core';
+import type { CostRecord, CostSummary } from '@reaatech/media-pipeline-mcp';
 
 export interface BudgetConfig {
   dailyLimit?: number;
@@ -24,8 +24,8 @@ export class CostTracker {
     by_pipeline: new Map(),
   };
   private budgetConfig?: BudgetConfig;
-  private dailySpend: number = 0;
-  private monthlySpend: number = 0;
+  private dailySpend = 0;
+  private monthlySpend = 0;
   private lastDailyReset?: Date;
   private lastMonthlyReset?: Date;
 

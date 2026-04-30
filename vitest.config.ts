@@ -13,11 +13,11 @@ export default defineConfig({
           statements: 80,
           branches: 80,
           functions: 80,
-          lines: 80
-        }
+          lines: 80,
+        },
       },
       include: ['packages/**/*'],
-      exclude: ['**/*.d.ts', '**/node_modules/**', '**/dist/**']
-    }
-  }
+      exclude: ['**/*.d.ts', '**/node_modules/**', '**/dist/**'],
+    },
+  },
 });

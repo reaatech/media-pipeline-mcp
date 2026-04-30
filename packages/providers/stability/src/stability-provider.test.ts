@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StabilityProvider } from './stability-provider.js';
 import type { StabilityConfig } from './stability-provider.js';
 
@@ -30,7 +30,7 @@ describe('StabilityProvider', () => {
           ok: true,
           status: 200,
           statusText: 'OK',
-        } as Response)
+        } as Response),
       );
 
       const result = await provider.healthCheck();
@@ -46,7 +46,7 @@ describe('StabilityProvider', () => {
           operation: 'unsupported.operation',
           params: {},
           config: {},
-        })
+        }),
       ).rejects.toThrow('Unsupported operation');
     });
   });

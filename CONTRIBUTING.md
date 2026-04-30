@@ -16,7 +16,7 @@ Thank you for your interest in contributing! This guide covers how to add new pr
 
 ```bash
 # Clone the repository
-git clone https://github.com/media-pipeline/media-pipeline-mcp.git
+git clone https://github.com/reaatech/media-pipeline-mcp.git
 cd media-pipeline-mcp
 
 # Install dependencies
@@ -52,7 +52,7 @@ cp ../provider-core/vitest.config.ts .
 
 ```typescript
 // packages/providers/your-provider/src/your-provider.ts
-import { MediaProvider, ProviderInput, ProviderOutput } from '@media-pipeline/provider-core';
+import { MediaProvider, ProviderInput, ProviderOutput } from '@reaatech/media-pipeline-mcp-provider-core';
 
 export class YourProvider extends MediaProvider {
   readonly name = 'your-provider';
@@ -191,7 +191,7 @@ cd packages/operations/your-operation
 
 ```typescript
 // packages/operations/your-operation/src/your-operation.ts
-import { Operation, OperationContext, Artifact } from '@media-pipeline/core';
+import { Operation, OperationContext, Artifact } from '@reaatech/media-pipeline-mcp';
 import { z } from 'zod';
 
 export const yourOperation: Operation = {
@@ -307,7 +307,7 @@ Pipeline templates are pre-built workflows for common use cases.
 
 ```typescript
 // packages/operations/pipeline/src/templates/your-template.ts
-import { PipelineDefinition } from '@media-pipeline/core';
+import { PipelineDefinition } from '@reaatech/media-pipeline-mcp';
 
 export const yourTemplate: PipelineDefinition = {
   id: 'your-template',
@@ -355,7 +355,7 @@ export const templates = [
 // packages/operations/pipeline/src/templates/your-template.test.ts
 import { describe, it, expect } from 'vitest';
 import { yourTemplate } from './your-template';
-import { executePipeline } from '@media-pipeline/core';
+import { executePipeline } from '@reaatech/media-pipeline-mcp';
 
 describe('your-template', () => {
   it('should execute successfully with mock providers', async () => {

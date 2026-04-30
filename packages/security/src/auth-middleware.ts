@@ -123,7 +123,7 @@ export class AuthMiddleware {
     }
 
     // Try JWT
-    const authHeader = headers['authorization'];
+    const authHeader = headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       return this.authenticateJwt(token);
@@ -243,7 +243,7 @@ export class AuthMiddleware {
   /**
    * Generate JWT token for user
    */
-  generateToken(user: Omit<User, 'id'> & { id: string }, expiresIn: string = '24h'): string {
+  generateToken(user: Omit<User, 'id'> & { id: string }, expiresIn = '24h'): string {
     if (!this.config.jwtSecret) {
       throw new Error('jwtSecret is required to generate JWT tokens');
     }
@@ -257,7 +257,7 @@ export class AuthMiddleware {
         tenant_id: user.tenantId,
       },
       this.config.jwtSecret as jwt.Secret,
-      { expiresIn } as jwt.SignOptions
+      { expiresIn } as jwt.SignOptions,
     );
   }
 }

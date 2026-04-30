@@ -1,0 +1,51 @@
+{
+  "name": "@reaatech/media-pipeline-mcp-doc-extraction",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@reaatech/media-pipeline-mcp": "workspace:*",
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*",
+    "@reaatech/media-pipeline-mcp-storage": "workspace:*",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.0",
+    "@vitest/coverage-v8": "4.1.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "description": "Document extraction operations — OCR, table extraction, field extraction, summarization via vision-capable LLMs",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/operations/doc-extraction"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/operations/doc-extraction#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
+}

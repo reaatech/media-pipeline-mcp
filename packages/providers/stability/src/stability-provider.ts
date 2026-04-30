@@ -1,5 +1,9 @@
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface StabilityConfig {
   apiKey: string;

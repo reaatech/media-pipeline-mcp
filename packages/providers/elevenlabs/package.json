@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/elevenlabs",
+  "name": "@reaatech/media-pipeline-mcp-elevenlabs",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -21,11 +21,27 @@
   },
   "dependencies": {
     "@11labs/client": "^0.1.0",
-    "@media-pipeline/provider-core": "workspace:*"
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "ElevenLabs provider — high-quality text-to-speech with voice selection, speed control, and voice tuning",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/providers/elevenlabs"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/providers/elevenlabs#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

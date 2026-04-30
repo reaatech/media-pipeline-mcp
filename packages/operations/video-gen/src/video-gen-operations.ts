@@ -1,13 +1,13 @@
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { Artifact } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta } from '@media-pipeline/storage';
-import type { MediaProvider, ProviderInput } from '@media-pipeline/provider-core';
+import { spawn } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import type { Readable } from 'node:stream';
+import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { Artifact } from '@reaatech/media-pipeline-mcp';
+import type { MediaProvider, ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { v4 as uuidv4 } from 'uuid';
-import { Readable } from 'stream';
-import { spawn } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
 
 export interface VideoGenerateConfig {
   prompt: string;
@@ -39,7 +39,7 @@ export class VideoGenOperations {
 
   constructor(
     private artifactRegistry: ArtifactRegistry,
-    private storage: ArtifactStore
+    private storage: ArtifactStore,
   ) {}
 
   /**
@@ -283,7 +283,7 @@ export class VideoGenOperations {
   private extractFrameWithFfmpeg(
     videoPath: string,
     timestamp: number,
-    outputPath: string
+    outputPath: string,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const args = [
@@ -396,7 +396,7 @@ export class VideoGenOperations {
 
 export function createVideoGenOperations(
   artifactRegistry: ArtifactRegistry,
-  storage: ArtifactStore
+  storage: ArtifactStore,
 ): VideoGenOperations {
   return new VideoGenOperations(artifactRegistry, storage);
 }

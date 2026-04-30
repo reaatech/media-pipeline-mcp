@@ -1,5 +1,5 @@
-import type { ArtifactType } from '@media-pipeline/core';
-import type { ArtifactStore } from '@media-pipeline/storage';
+import type { ArtifactType } from '@reaatech/media-pipeline-mcp';
+import type { ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 
 export interface ProviderInput {
   operation: string;
@@ -47,8 +47,8 @@ export abstract class MediaProvider {
       try {
         if (attempt > 0) {
           const delay = Math.min(
-            this.retryConfig.baseDelay * Math.pow(2, attempt - 1),
-            this.retryConfig.maxDelay
+            this.retryConfig.baseDelay * 2 ** (attempt - 1),
+            this.retryConfig.maxDelay,
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -87,7 +87,7 @@ export abstract class MediaProvider {
     type: ArtifactType,
     mimeType: string,
     metadata: Record<string, unknown>,
-    sourceStep?: string
+    sourceStep?: string,
   ): Promise<string> {
     if (!this.storage) {
       throw new Error('Storage not configured for provider');
@@ -107,7 +107,9 @@ export abstract class MediaProvider {
 }
 
 export function defineProvider<T extends MediaProvider>(
-  providerClass: new (...args: unknown[]) => T
-): new (...args: unknown[]) => T {
+  providerClass: new (...args: unknown[]) => T,
+): new (
+  ...args: unknown[]
+) => T {
   return providerClass;
 }

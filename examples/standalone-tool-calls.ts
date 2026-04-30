@@ -1,6 +1,6 @@
 /**
  * Example: Standalone Tool Calls
- * 
+ *
  * Demonstrates calling individual media tools without pipeline orchestration.
  * This shows the "media toolkit" use case - just call the tools you need.
  */
@@ -9,10 +9,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 async function standaloneToolCalls() {
-  const client = new Client(
-    { name: 'example-standalone', version: '1.0.0' },
-    { capabilities: {} }
-  );
+  const client = new Client({ name: 'example-standalone', version: '1.0.0' }, { capabilities: {} });
 
   // Connect to the MCP server
   const transport = new StreamableHTTPClientTransport(new URL('http://localhost:8080'));
@@ -22,7 +19,7 @@ async function standaloneToolCalls() {
 
   // List available tools
   const tools = await client.listTools();
-  console.log('Available tools:', tools.tools.map(t => t.name).join(', '));
+  console.log('Available tools:', tools.tools.map((t) => t.name).join(', '));
   console.log('');
 
   // Example 1: Generate an image
@@ -33,8 +30,8 @@ async function standaloneToolCalls() {
       prompt: 'A serene mountain landscape at sunset, photorealistic, 4K',
       negative_prompt: 'blurry, low quality, watermark',
       dimensions: '1024x1024',
-      model: 'sd3'
-    }
+      model: 'sd3',
+    },
   });
   console.log('Generated image:', JSON.stringify(generateResult, null, 2));
   console.log('');
@@ -44,8 +41,8 @@ async function standaloneToolCalls() {
   const listResult = await client.callTool({
     name: 'media.artifact.list',
     arguments: {
-      limit: 10
-    }
+      limit: 10,
+    },
   });
   console.log('Artifacts:', JSON.stringify(listResult, null, 2));
   console.log('');
@@ -54,7 +51,7 @@ async function standaloneToolCalls() {
   console.log('--- Example 3: Provider health ---');
   const providersResult = await client.callTool({
     name: 'media.providers.list',
-    arguments: {}
+    arguments: {},
   });
   console.log('Providers:', JSON.stringify(providersResult, null, 2));
   console.log('');
@@ -63,7 +60,7 @@ async function standaloneToolCalls() {
   console.log('--- Example 4: Cost summary ---');
   const costResult = await client.callTool({
     name: 'media.costs.summary',
-    arguments: {}
+    arguments: {},
   });
   console.log('Cost summary:', JSON.stringify(costResult, null, 2));
   console.log('');

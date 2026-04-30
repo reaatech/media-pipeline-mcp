@@ -1,5 +1,9 @@
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface OpenAIConfig {
   apiKey: string;
@@ -284,7 +288,6 @@ export class OpenAIProvider extends MediaProvider {
         return 'Describe this image briefly in 1-2 sentences.';
       case 'structured':
         return 'Describe this image in a structured format covering subject, setting, style, colors, and notable details.';
-      case 'detailed':
       default:
         return 'Describe this image in detail.';
     }
@@ -296,7 +299,6 @@ export class OpenAIProvider extends MediaProvider {
         return 'audio/wav';
       case 'opus':
         return 'audio/opus';
-      case 'mp3':
       default:
         return 'audio/mpeg';
     }

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { PipelineValidator, ProviderAvailability } from './pipeline-validator.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { PipelineValidator, type ProviderAvailability } from './pipeline-validator.js';
 import type { PipelineDefinition } from './types/index.js';
 
 // Mock ProviderAvailability

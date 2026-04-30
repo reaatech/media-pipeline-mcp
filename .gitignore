@@ -9,9 +9,12 @@ node_modules/
 # Build output
 dist/
 build/
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
 **/src/**/*.d.ts
 **/src/**/*.d.ts.map
 *.tsbuildinfo
+**/tsconfig.tsbuildinfo
 
 # Coverage
 coverage/
@@ -62,3 +65,4 @@ sbom.json
 
 # Docker
 docker-compose.override.yml
+!*.DS_Store

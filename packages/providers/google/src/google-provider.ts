@@ -1,7 +1,11 @@
-import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 import { PredictionServiceClient } from '@google-cloud/aiplatform';
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface GoogleProviderConfig {
   projectId: string;
@@ -300,9 +304,9 @@ export class GoogleProvider extends MediaProvider {
         };
 
         // Extract header row
-        if (table.headerRows && table.headerRows[0]) {
+        if (table.headerRows?.[0]) {
           tableData.headers = table.headerRows[0].cells.map(
-            (cell: any) => cell.layout?.textAnchor?.text || ''
+            (cell: any) => cell.layout?.textAnchor?.text || '',
           );
         }
 
@@ -319,11 +323,11 @@ export class GoogleProvider extends MediaProvider {
   }
 
   private tableToMarkdown(table: any): string {
-    let md = '| ' + table.headers.join(' | ') + ' |\n';
-    md += '| ' + table.headers.map(() => '---').join(' | ') + ' |\n';
+    let md = `| ${table.headers.join(' | ')} |\n`;
+    md += `| ${table.headers.map(() => '---').join(' | ')} |\n`;
 
     for (const row of table.rows) {
-      md += '| ' + row.join(' | ') + ' |\n';
+      md += `| ${row.join(' | ')} |\n`;
     }
 
     return md;
@@ -331,7 +335,7 @@ export class GoogleProvider extends MediaProvider {
 
   private extractFieldsFromDocument(
     document: any,
-    schema: Record<string, string>
+    schema: Record<string, string>,
   ): Record<string, unknown> {
     const extracted: Record<string, unknown> = {};
 
@@ -360,7 +364,7 @@ export class GoogleProvider extends MediaProvider {
   private convertType(value: string, type: string): any {
     switch (type) {
       case 'number':
-        return parseFloat(value) || 0;
+        return Number.parseFloat(value) || 0;
       case 'boolean':
         return value.toLowerCase() === 'true' || value.toLowerCase() === 'yes';
       case 'date':

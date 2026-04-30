@@ -1,9 +1,9 @@
 /**
  * Example: Product Photo Pipeline
- * 
+ *
  * Demonstrates the product-photo template pipeline:
  * generate → upscale → remove background → composite onto lifestyle background
- * 
+ *
  * Shows quality gate rejection and retry behavior.
  */
 
@@ -13,7 +13,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 async function productPhotoPipeline() {
   const client = new Client(
     { name: 'example-product-photo', version: '1.0.0' },
-    { capabilities: {} }
+    { capabilities: {} },
   );
 
   const transport = new StreamableHTTPClientTransport(new URL('http://localhost:8080'));
@@ -29,57 +29,58 @@ async function productPhotoPipeline() {
         id: 'generate',
         operation: 'image.generate',
         inputs: {
-          prompt: 'Professional product photo of a white ceramic coffee mug on a clean white background, studio lighting, high quality'
+          prompt:
+            'Professional product photo of a white ceramic coffee mug on a clean white background, studio lighting, high quality',
         },
         config: {
           model: 'sd3',
           dimensions: '1024x1024',
-          negative_prompt: 'blurry, low quality, watermark, text'
+          negative_prompt: 'blurry, low quality, watermark, text',
         },
         qualityGate: {
           type: 'threshold',
           config: {
             checks: [
               { field: 'metadata.width', operator: '>=', value: 1024 },
-              { field: 'metadata.height', operator: '>=', value: 1024 }
-            ]
+              { field: 'metadata.height', operator: '>=', value: 1024 },
+            ],
           },
           action: 'retry',
-          maxRetries: 2
-        }
+          maxRetries: 2,
+        },
       },
       {
         id: 'upscale',
         operation: 'image.upscale',
         inputs: {
-          artifact_id: '{{generate.output}}'
+          artifact_id: '{{generate.output}}',
         },
         config: {
           scale: '4x',
-          model: 'real-esrgan'
-        }
+          model: 'real-esrgan',
+        },
       },
       {
         id: 'remove_bg',
         operation: 'image.remove_background',
         inputs: {
-          artifact_id: '{{upscale.output}}'
-        }
+          artifact_id: '{{upscale.output}}',
+        },
       },
       {
         id: 'composite',
         operation: 'image.composite',
         inputs: {
           base_artifact_id: '{{remove_bg.output}}',
-          overlay_artifact_id: 'lifestyle-bg-001' // Pre-existing background
+          overlay_artifact_id: 'lifestyle-bg-001', // Pre-existing background
         },
         config: {
           position: 'center',
           blend_mode: 'normal',
-          opacity: 1.0
-        }
-      }
-    ]
+          opacity: 1.0,
+        },
+      },
+    ],
   };
 
   // Step 1: Define and validate the pipeline
@@ -87,8 +88,8 @@ async function productPhotoPipeline() {
   const defineResult = await client.callTool({
     name: 'media.pipeline.define',
     arguments: {
-      pipeline: pipelineDefinition
-    }
+      pipeline: pipelineDefinition,
+    },
   });
   console.log('Pipeline definition result:', JSON.stringify(defineResult, null, 2));
   console.log('');
@@ -104,8 +105,8 @@ async function productPhotoPipeline() {
   const runResult = await client.callTool({
     name: 'media.pipeline.run',
     arguments: {
-      pipeline: pipelineDefinition
-    }
+      pipeline: pipelineDefinition,
+    },
   });
   console.log('Pipeline execution result:', JSON.stringify(runResult, null, 2));
   console.log('');

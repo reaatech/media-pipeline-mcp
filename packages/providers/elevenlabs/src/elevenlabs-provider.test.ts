@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ElevenLabsProvider } from './elevenlabs-provider.js';
-import type { ProviderInput } from '@media-pipeline/provider-core';
 
 // Mock fetch
 global.fetch = vi.fn();

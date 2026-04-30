@@ -132,7 +132,7 @@ export class RateLimiter {
   private consumeToken(
     bucket: TokenBucket,
     tokens: number,
-    now: number
+    now: number,
   ): { allowed: boolean; retryAfter?: number } {
     // Refill bucket
     const elapsed = (now - bucket.lastRefill) / 1000;
@@ -169,7 +169,7 @@ export class RateLimiter {
   /**
    * Clean up old client buckets
    */
-  cleanup(maxAge: number = 3600000): void {
+  cleanup(maxAge = 3600000): void {
     const now = Date.now();
     for (const [clientId, bucket] of this.clients.entries()) {
       if (now - bucket.global.lastRefill > maxAge) {

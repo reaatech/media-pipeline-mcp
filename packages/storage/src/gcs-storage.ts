@@ -1,4 +1,4 @@
-import type { ArtifactStore, StorageResult, ArtifactMeta, GCSStorageConfig } from './types.js';
+import type { ArtifactMeta, ArtifactStore, GCSStorageConfig, StorageResult } from './types.js';
 
 export class GCSStorage implements ArtifactStore {
   private bucket: string;

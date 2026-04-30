@@ -1,6 +1,6 @@
 /**
  * Example: Podcast Clip Pipeline
- * 
+ *
  * Demonstrates the podcast-clip template pipeline:
  * audio extract → STT → summarize → TTS promo voiceover
  */
@@ -11,7 +11,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 async function podcastClipPipeline() {
   const client = new Client(
     { name: 'example-podcast-clip', version: '1.0.0' },
-    { capabilities: {} }
+    { capabilities: {} },
   );
 
   const transport = new StreamableHTTPClientTransport(new URL('http://localhost:8080'));
@@ -27,34 +27,34 @@ async function podcastClipPipeline() {
         id: 'transcribe',
         operation: 'audio.stt',
         inputs: {
-          artifact_id: 'podcast-episode-001' // Pre-uploaded audio file
+          artifact_id: 'podcast-episode-001', // Pre-uploaded audio file
         },
         config: {
           language: 'en',
-          diarize: true
-        }
+          diarize: true,
+        },
       },
       {
         id: 'diarize',
         operation: 'audio.diarize',
         inputs: {
-          artifact_id: 'podcast-episode-001'
+          artifact_id: 'podcast-episode-001',
         },
         config: {
-          num_speakers: 2
-        }
+          num_speakers: 2,
+        },
       },
       {
         id: 'isolate_vocals',
         operation: 'audio.isolate',
         inputs: {
-          artifact_id: 'podcast-episode-001'
+          artifact_id: 'podcast-episode-001',
         },
         config: {
-          target: 'vocals'
-        }
-      }
-    ]
+          target: 'vocals',
+        },
+      },
+    ],
   };
 
   // Step 1: Define and validate the pipeline
@@ -62,8 +62,8 @@ async function podcastClipPipeline() {
   const defineResult = await client.callTool({
     name: 'media.pipeline.define',
     arguments: {
-      pipeline: pipelineDefinition
-    }
+      pipeline: pipelineDefinition,
+    },
   });
   console.log('Pipeline definition result:', JSON.stringify(defineResult, null, 2));
   console.log('');
@@ -79,8 +79,8 @@ async function podcastClipPipeline() {
   const runResult = await client.callTool({
     name: 'media.pipeline.run',
     arguments: {
-      pipeline: pipelineDefinition
-    }
+      pipeline: pipelineDefinition,
+    },
   });
   console.log('Pipeline execution result:', JSON.stringify(runResult, null, 2));
   console.log('');

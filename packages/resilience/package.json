@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/resilience",
+  "name": "@reaatech/media-pipeline-mcp-resilience",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -27,5 +27,21 @@
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "^4.1.4",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "High availability patterns \u2014 circuit breaker and retry with exponential backoff for media pipeline provider calls",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/resilience"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/resilience#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

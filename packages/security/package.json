@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/security",
+  "name": "@reaatech/media-pipeline-mcp-security",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -31,5 +31,21 @@
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "^4.1.4",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "Enterprise security features \u2014 API key and JWT authentication, RBAC, token bucket rate limiting, audit logging with SIEM export",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/security"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/security#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

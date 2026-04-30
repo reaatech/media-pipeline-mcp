@@ -1,6 +1,6 @@
-import { promises as fs, createWriteStream, createReadStream } from 'fs';
-import { join, dirname } from 'path';
-import type { ArtifactStore, StorageResult, ArtifactMeta, LocalStorageConfig } from './types.js';
+import { promises as fs, createReadStream, createWriteStream } from 'node:fs';
+import { dirname, join } from 'node:path';
+import type { ArtifactMeta, ArtifactStore, LocalStorageConfig, StorageResult } from './types.js';
 
 export class LocalStorage implements ArtifactStore {
   private basePath: string;

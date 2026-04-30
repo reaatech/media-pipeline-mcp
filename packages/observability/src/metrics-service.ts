@@ -1,8 +1,8 @@
-import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { ValueType } from '@opentelemetry/api';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { Resource } from '@opentelemetry/resources';
+import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { ValueType } from '@opentelemetry/api';
 import type { ObservabilityConfig } from './observability-service.js';
 
 export class MetricsService {
@@ -94,7 +94,7 @@ export class MetricsService {
     });
   }
 
-  incrementPipelineSteps(pipelineId: string, count: number = 1): void {
+  incrementPipelineSteps(pipelineId: string, count = 1): void {
     this.pipelineStepsCounter?.add(count, {
       'media.pipeline_id': pipelineId,
     });
@@ -106,7 +106,7 @@ export class MetricsService {
     });
   }
 
-  incrementQualityGateRetries(gateType: string, count: number = 1): void {
+  incrementQualityGateRetries(gateType: string, count = 1): void {
     this.qualityGateRetryCounter?.add(count, {
       'media.quality_gate_type': gateType,
     });

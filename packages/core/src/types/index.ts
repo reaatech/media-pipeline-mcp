@@ -70,7 +70,7 @@ export const PipelineDefinitionSchema = z.object({
       inputs: z.record(z.string()),
       config: z.record(z.unknown()).default({}),
       qualityGate: QualityGateSchema.optional(),
-    })
+    }),
   ),
 });
 export type PipelineDefinition = z.infer<typeof PipelineDefinitionSchema>;

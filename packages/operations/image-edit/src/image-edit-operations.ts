@@ -1,10 +1,10 @@
+import type { Readable } from 'node:stream';
+import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { Artifact } from '@reaatech/media-pipeline-mcp';
+import type { MediaProvider, ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import sharp from 'sharp';
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { Artifact } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta } from '@media-pipeline/storage';
-import type { MediaProvider, ProviderInput } from '@media-pipeline/provider-core';
 import { v4 as uuidv4 } from 'uuid';
-import { Readable } from 'stream';
 
 export interface ResizeConfig {
   width?: number;
@@ -59,7 +59,7 @@ export class ImageEditOperations {
 
   constructor(
     private artifactRegistry: ArtifactRegistry,
-    private storage: ArtifactStore
+    private storage: ArtifactStore,
   ) {}
 
   /**
@@ -219,7 +219,7 @@ export class ImageEditOperations {
   async composite(
     baseArtifactId: string,
     overlayArtifactId: string,
-    config: CompositeConfig
+    config: CompositeConfig,
   ): Promise<Artifact> {
     const baseArtifact = this.artifactRegistry.get(baseArtifactId);
     const overlayArtifact = this.artifactRegistry.get(overlayArtifactId);
@@ -546,7 +546,7 @@ export class ImageEditOperations {
 
 export function createImageEditOperations(
   artifactRegistry: ArtifactRegistry,
-  storage: ArtifactStore
+  storage: ArtifactStore,
 ): ImageEditOperations {
   return new ImageEditOperations(artifactRegistry, storage);
 }

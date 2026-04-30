@@ -1,5 +1,5 @@
 {
-  "name": "@media-pipeline/openai",
+  "name": "@reaatech/media-pipeline-mcp-openai",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,12 +19,28 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@media-pipeline/provider-core": "workspace:*"
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "^5.4.5",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "OpenAI provider — DALL-E 3 image generation, GPT-4o Vision description, TTS-1 text-to-speech, Whisper-1 speech-to-text",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/providers/openai"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/providers/openai#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

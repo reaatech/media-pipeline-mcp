@@ -16,7 +16,7 @@ pnpm install
 pnpm build
 
 # Run
-pnpm --filter=@media-pipeline/server start
+pnpm --filter=@reaatech/media-pipeline-mcp-server start
 ```
 
 ## Environment Variables
@@ -292,4 +292,4 @@ Structured JSON logs are written to stdout. Configure your log aggregator:
 
 ## Support
 
-For issues and security concerns, please contact security@media-pipeline.dev
+For issues and security concerns, please contact security@reaatech.com

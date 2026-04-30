@@ -80,7 +80,7 @@ export class StructuredLogger {
     artifactId: string,
     costUsd: number,
     durationMs: number,
-    context?: LogContext
+    context?: LogContext,
   ): void {
     this.info(`Operation ${operation} completed`, {
       operation,
@@ -97,7 +97,7 @@ export class StructuredLogger {
     stepId: string,
     operation: string,
     status: 'start' | 'complete' | 'failed' | 'gated',
-    context?: LogContext
+    context?: LogContext,
   ): void {
     this.info(`Pipeline step ${status}`, {
       pipelineId,

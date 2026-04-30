@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@reaatech/media-pipeline-mcp": ["./packages/core/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-storage": ["./packages/storage/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-server": ["./packages/server/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-security": ["./packages/security/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-resilience": ["./packages/resilience/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-observability": ["./packages/observability/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-provider-core": [
+        "./packages/providers/provider-core/src/index.ts"
+      ],
+      "@reaatech/media-pipeline-mcp-openai": ["./packages/providers/openai/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-stability": ["./packages/providers/stability/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-replicate": ["./packages/providers/replicate/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-fal": ["./packages/providers/fal/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-elevenlabs": ["./packages/providers/elevenlabs/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-deepgram": ["./packages/providers/deepgram/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-anthropic": ["./packages/providers/anthropic/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-google": ["./packages/providers/google/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-pipeline": ["./packages/operations/pipeline/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-image-edit": ["./packages/operations/image-edit/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-video-gen": ["./packages/operations/video-gen/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-audio-gen": ["./packages/operations/audio-gen/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-doc-extraction": [
+        "./packages/operations/doc-extraction/src/index.ts"
+      ]
+    }
+  }
+}

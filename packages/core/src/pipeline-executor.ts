@@ -1,15 +1,15 @@
+import { randomUUID } from 'node:crypto';
 import { ArtifactRegistry } from './artifact-registry.js';
-import { randomUUID } from 'crypto';
-import type {
-  Pipeline,
-  PipelineStep,
-  PipelineDefinition,
-  Artifact,
-  QualityGateResult,
-  PipelineEvent,
-  CostRecord,
-} from './types/index.js';
 import { createQualityGateEvaluator } from './quality-gates/index.js';
+import type {
+  Artifact,
+  CostRecord,
+  Pipeline,
+  PipelineDefinition,
+  PipelineEvent,
+  PipelineStep,
+  QualityGateResult,
+} from './types/index.js';
 
 export interface Provider {
   readonly name: string;
@@ -17,7 +17,7 @@ export interface Provider {
   execute(
     operation: string,
     inputs: Record<string, unknown>,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): Promise<{
     data?: Buffer | NodeJS.ReadableStream;
     artifact: Omit<Artifact, 'id' | 'createdAt'>;
@@ -32,15 +32,15 @@ export interface PipelineExecutorOptions {
   defaultPipelineTimeoutMs?: number;
   llmJudgeFn?: (
     prompt: string,
-    artifact: Artifact
+    artifact: Artifact,
   ) => Promise<{ pass: boolean; reasoning: string; score?: number }>;
   customCheckFn?: (
     artifact: Artifact,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ) => boolean | Promise<boolean>;
   prepareInputs?: (
     operation: string,
-    inputs: Record<string, unknown>
+    inputs: Record<string, unknown>,
   ) => Promise<Record<string, unknown>>;
   persistArtifact?: (params: {
     artifactId: string;
@@ -49,7 +49,7 @@ export interface PipelineExecutorOptions {
     artifact: Omit<Artifact, 'id' | 'createdAt'>;
     pipelineId: string;
     stepId: string;
-  }) => Promise<{ uri?: string } | void>;
+  }) => Promise<{ uri?: string } | undefined>;
   onEvent?: (event: PipelineEvent) => void;
   onCost?: (record: CostRecord) => void;
 }
@@ -60,15 +60,15 @@ export class PipelineExecutor {
   private readonly defaultPipelineTimeoutMs: number;
   private llmJudgeFn?: (
     prompt: string,
-    artifact: Artifact
+    artifact: Artifact,
   ) => Promise<{ pass: boolean; reasoning: string; score?: number }>;
   private customCheckFn?: (
     artifact: Artifact,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ) => boolean | Promise<boolean>;
   private prepareInputs?: (
     operation: string,
-    inputs: Record<string, unknown>
+    inputs: Record<string, unknown>,
   ) => Promise<Record<string, unknown>>;
   private persistArtifact?: (params: {
     artifactId: string;
@@ -77,7 +77,7 @@ export class PipelineExecutor {
     artifact: Omit<Artifact, 'id' | 'createdAt'>;
     pipelineId: string;
     stepId: string;
-  }) => Promise<{ uri?: string } | void>;
+  }) => Promise<{ uri?: string } | undefined>;
   private onEvent?: (event: PipelineEvent) => void;
   private onCost?: (record: CostRecord) => void;
 
@@ -214,7 +214,7 @@ export class PipelineExecutor {
 
     if (!resumeStepId || resumeStepIndex === -1) {
       throw new Error(
-        `${resumeStepLabel[0].toUpperCase() + resumeStepLabel.slice(1)} step not found`
+        `${resumeStepLabel[0].toUpperCase() + resumeStepLabel.slice(1)} step not found`,
       );
     }
 
@@ -320,7 +320,7 @@ export class PipelineExecutor {
 
   private async executeStep(
     step: PipelineStep,
-    pipeline: Pipeline
+    pipeline: Pipeline,
   ): Promise<{
     status: 'completed' | 'failed' | 'gated';
     artifact?: Artifact;
@@ -432,7 +432,7 @@ export class PipelineExecutor {
 
   private async executeStepOnce(
     step: PipelineStep,
-    pipeline: Pipeline
+    pipeline: Pipeline,
   ): Promise<{ artifact: Artifact } | null> {
     // Resolve inputs
     const resolvedInputs = await this.resolveInputs(step.inputs);
@@ -513,7 +513,7 @@ export class PipelineExecutor {
 
   private async evaluateQualityGate(
     _gate: import('./types/index.js').QualityGate,
-    artifact: Artifact
+    artifact: Artifact,
   ): Promise<QualityGateResult> {
     const evaluator = createQualityGateEvaluator(_gate, this.llmJudgeFn, this.customCheckFn);
     return await evaluator.evaluate(_gate, artifact);

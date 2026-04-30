@@ -3,10 +3,10 @@ export * from './local-storage.js';
 export * from './s3-storage.js';
 export * from './gcs-storage.js';
 
-import type { StorageConfig, ArtifactStore } from './types.js';
+import { GCSStorage } from './gcs-storage.js';
 import { LocalStorage } from './local-storage.js';
 import { S3Storage } from './s3-storage.js';
-import { GCSStorage } from './gcs-storage.js';
+import type { ArtifactStore, StorageConfig } from './types.js';
 
 export function createStorage(config: StorageConfig): ArtifactStore {
   switch (config.type) {

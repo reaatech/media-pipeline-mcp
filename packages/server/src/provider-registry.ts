@@ -1,4 +1,4 @@
-import type { Provider } from '@media-pipeline/core';
+import type { Provider } from '@reaatech/media-pipeline-mcp';
 
 export interface ProviderHealthStatus {
   name: string;
@@ -81,7 +81,7 @@ export class ProviderRegistry {
 
   async checkAllHealth(): Promise<ProviderHealthStatus[]> {
     const results = await Promise.allSettled(
-      Array.from(this.providers.keys()).map((name) => this.checkHealth(name))
+      Array.from(this.providers.keys()).map((name) => this.checkHealth(name)),
     );
 
     return results

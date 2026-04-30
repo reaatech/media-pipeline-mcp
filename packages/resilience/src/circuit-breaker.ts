@@ -26,7 +26,7 @@ export class CircuitBreakerError extends Error {
   constructor(
     message: string,
     public readonly cause?: Error,
-    public readonly retryAfter?: number
+    public readonly retryAfter?: number,
   ) {
     super(message);
     this.name = 'CircuitBreakerError';
@@ -45,7 +45,7 @@ export class CircuitBreaker {
 
   constructor(
     public readonly name: string,
-    config: Partial<CircuitBreakerConfig> = {}
+    config: Partial<CircuitBreakerConfig> = {},
   ) {
     this.config = {
       failureThreshold: config.failureThreshold ?? 5,
@@ -63,7 +63,7 @@ export class CircuitBreaker {
           throw new CircuitBreakerError(
             `Circuit breaker '${this.name}' is open (half-open probe in progress)`,
             undefined,
-            retryAfter
+            retryAfter,
           );
         }
         this.state = 'half-open';
@@ -74,7 +74,7 @@ export class CircuitBreaker {
         throw new CircuitBreakerError(
           `Circuit breaker '${this.name}' is open`,
           undefined,
-          retryAfter
+          retryAfter,
         );
       }
     }
@@ -185,7 +185,7 @@ export class CircuitBreaker {
 
 export function createCircuitBreaker(
   name: string,
-  config?: Partial<CircuitBreakerConfig>
+  config?: Partial<CircuitBreakerConfig>,
 ): CircuitBreaker {
   return new CircuitBreaker(name, config);
 }

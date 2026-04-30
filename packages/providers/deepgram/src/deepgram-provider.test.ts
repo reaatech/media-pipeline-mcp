@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeepgramProvider } from './deepgram-provider.js';
-import type { ProviderInput } from '@media-pipeline/provider-core';
 
 // Mock global fetch for health checks
 const mockFetch = vi.fn();

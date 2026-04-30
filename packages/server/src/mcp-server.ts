@@ -1,23 +1,23 @@
+import http from 'node:http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import http from 'http';
-import type { PipelineDefinition, Pipeline, Artifact } from '@media-pipeline/core';
+import type { Artifact, Pipeline, PipelineDefinition } from '@reaatech/media-pipeline-mcp';
 import {
+  type PipelineEvent,
   PipelineExecutor,
   PipelineValidator,
   createQualityGateEvaluator,
-  type PipelineEvent,
-} from '@media-pipeline/core';
-import type { ArtifactStore } from '@media-pipeline/storage';
-import { createStorage } from '@media-pipeline/storage';
+} from '@reaatech/media-pipeline-mcp';
+import { AuthMiddleware, RateLimiter } from '@reaatech/media-pipeline-mcp-security';
+import type { AuthContext } from '@reaatech/media-pipeline-mcp-security';
+import type { ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
+import { createStorage } from '@reaatech/media-pipeline-mcp-storage';
+import type { ServerConfig } from './config.js';
+import { CostTracker } from './cost-tracker.js';
+import { createProviders } from './provider-factory.js';
 import { ProviderRegistry } from './provider-registry.js';
 import { toolRegistry } from './tool-registry.js';
-import { CostTracker } from './cost-tracker.js';
-import type { ServerConfig } from './config.js';
-import { AuthMiddleware, RateLimiter } from '@media-pipeline/security';
-import { createProviders } from './provider-factory.js';
-import type { AuthContext } from '@media-pipeline/security';
 
 export class MCPServer {
   private server: Server;
@@ -46,7 +46,7 @@ export class MCPServer {
         capabilities: {
           tools: {},
         },
-      }
+      },
     );
 
     this.providerRegistry = new ProviderRegistry();
@@ -316,7 +316,7 @@ export class MCPServer {
 
         case 'media.pipeline.resume':
           return this.handleResumePipeline(
-            args as { pipeline_id: string; action: 'retry' | 'skip' | 'abort' }
+            args as { pipeline_id: string; action: 'retry' | 'skip' | 'abort' },
           );
 
         case 'media.pipeline.templates':
@@ -531,11 +531,7 @@ export class MCPServer {
         content: [
           {
             type: 'text',
-            text:
-              `Pipeline '${args.pipeline.id}' is valid.\n` +
-              `Estimated cost: $${result.estimated_cost_usd?.toFixed(4) || '0.0000'}\n` +
-              `Estimated duration: ${result.estimated_duration_ms ? (result.estimated_duration_ms / 1000).toFixed(1) : '0'}s\n` +
-              (result.warnings.length > 0 ? `\nWarnings:\n${result.warnings.join('\n')}` : ''),
+            text: `Pipeline '${args.pipeline.id}' is valid.\nEstimated cost: $${result.estimated_cost_usd?.toFixed(4) || '0.0000'}\nEstimated duration: ${result.estimated_duration_ms ? (result.estimated_duration_ms / 1000).toFixed(1) : '0'}s\n${result.warnings.length > 0 ? `\nWarnings:\n${result.warnings.join('\n')}` : ''}`,
           },
         ],
         success: true,
@@ -758,9 +754,7 @@ export class MCPServer {
       content: [
         {
           type: 'text',
-          text:
-            `Found ${limited.length} artifacts${args.prefix ? ` with prefix '${args.prefix}'` : ''}:\n\n` +
-            limited.map((a) => `- ${a.id} (${a.type}, ${a.mimeType})`).join('\n'),
+          text: `Found ${limited.length} artifacts${args.prefix ? ` with prefix '${args.prefix}'` : ''}:\n\n${limited.map((a) => `- ${a.id} (${a.type}, ${a.mimeType})`).join('\n')}`,
         },
       ],
       success: true,
@@ -792,16 +786,12 @@ export class MCPServer {
       content: [
         {
           type: 'text',
-          text:
-            `Configured providers (${providers.length}):\n\n` +
-            providers
-              .map(
-                (p) =>
-                  `- ${p.name}: ${p.healthy ? '✓ Healthy' : '✗ Unhealthy'}\n` +
-                  `  Operations: ${p.operations.join(', ')}\n` +
-                  (p.error ? `  Error: ${p.error}` : '')
-              )
-              .join('\n'),
+          text: `Configured providers (${providers.length}):\n\n${providers
+            .map(
+              (p) =>
+                `- ${p.name}: ${p.healthy ? '✓ Healthy' : '✗ Unhealthy'}\n  Operations: ${p.operations.join(', ')}\n${p.error ? `  Error: ${p.error}` : ''}`,
+            )
+            .join('\n')}`,
         },
       ],
       success: true,
@@ -838,17 +828,13 @@ export class MCPServer {
       content: [
         {
           type: 'text',
-          text:
-            `Cost Summary:\n` +
-            `Total: $${summary.total_usd.toFixed(4)}\n\n` +
-            `By Operation:\n` +
-            Array.from(summary.by_operation.entries())
-              .map(([op, cost]) => `  ${op}: $${cost.toFixed(4)}`)
-              .join('\n') +
-            `\n\nBy Provider:\n` +
-            Array.from(summary.by_provider.entries())
-              .map(([provider, cost]) => `  ${provider}: $${cost.toFixed(4)}`)
-              .join('\n'),
+          text: `Cost Summary:\nTotal: $${summary.total_usd.toFixed(4)}\n\nBy Operation:\n${Array.from(
+            summary.by_operation.entries(),
+          )
+            .map(([op, cost]) => `  ${op}: $${cost.toFixed(4)}`)
+            .join('\n')}\n\nBy Provider:\n${Array.from(summary.by_provider.entries())
+            .map(([provider, cost]) => `  ${provider}: $${cost.toFixed(4)}`)
+            .join('\n')}`,
         },
       ],
       success: true,
@@ -874,7 +860,7 @@ export class MCPServer {
       const evaluator = createQualityGateEvaluator(
         args.gate,
         (prompt, currentArtifact) => this.evaluateWithLLM(prompt, currentArtifact),
-        (currentArtifact, gateConfig) => this.evaluateCustomGate(currentArtifact, gateConfig)
+        (currentArtifact, gateConfig) => this.evaluateCustomGate(currentArtifact, gateConfig),
       );
       const result = await evaluator.evaluate(args.gate, artifact);
 
@@ -882,12 +868,7 @@ export class MCPServer {
         content: [
           {
             type: 'text',
-            text:
-              `Quality gate evaluation result:\n` +
-              `Passed: ${result.passed}\n` +
-              `Reasoning: ${result.reasoning}\n` +
-              (result.score !== undefined ? `Score: ${result.score}\n` : '') +
-              `Action taken: ${result.action}`,
+            text: `Quality gate evaluation result:\nPassed: ${result.passed}\nReasoning: ${result.reasoning}\n${result.score !== undefined ? `Score: ${result.score}\n` : ''}Action taken: ${result.action}`,
           },
         ],
         success: true,
@@ -958,8 +939,8 @@ export class MCPServer {
     });
 
     await new Promise<void>((resolve, reject) => {
-      this.httpServer!.listen(this.config.port, this.config.host, () => resolve());
-      this.httpServer!.on('error', reject);
+      this.httpServer?.listen(this.config.port, this.config.host, () => resolve());
+      this.httpServer?.on('error', reject);
     });
 
     // Check provider health on startup
@@ -972,14 +953,14 @@ export class MCPServer {
       `Providers: ${this.providerRegistry
         .getAllProviders()
         .map((p) => p.name)
-        .join(', ')}`
+        .join(', ')}`,
     );
   }
 
   async stop(): Promise<void> {
     if (this.httpServer) {
       await new Promise<void>((resolve, reject) => {
-        this.httpServer!.close((err) => (err ? reject(err) : resolve()));
+        this.httpServer?.close((err) => (err ? reject(err) : resolve()));
       });
       this.httpServer = null;
     }
@@ -1004,7 +985,7 @@ export class MCPServer {
 
   private async authorizeRequest(
     req: http.IncomingMessage,
-    res: http.ServerResponse
+    res: http.ServerResponse,
   ): Promise<{ allowed: boolean }> {
     if (!this.authMiddleware) {
       return { allowed: true };
@@ -1014,7 +995,7 @@ export class MCPServer {
       Object.entries(req.headers).map(([key, value]) => [
         key.toLowerCase(),
         Array.isArray(value) ? value[0] : value,
-      ])
+      ]),
     );
     const context = await this.authMiddleware.authenticate(headers);
 
@@ -1031,7 +1012,7 @@ export class MCPServer {
   private applyRateLimit(
     req: http.IncomingMessage,
     res: http.ServerResponse,
-    parsedBody?: unknown
+    parsedBody?: unknown,
   ): boolean {
     if (!this.rateLimiter) {
       return true;
@@ -1056,7 +1037,7 @@ export class MCPServer {
 
   private async parseRequestBody(
     req: http.IncomingMessage,
-    res: http.ServerResponse
+    res: http.ServerResponse,
   ): Promise<unknown | undefined> {
     if (req.method !== 'POST') {
       return undefined;
@@ -1154,7 +1135,7 @@ export class MCPServer {
 
   private async prepareProviderInputs(
     operation: string,
-    inputs: Record<string, unknown>
+    inputs: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const prepared: Record<string, unknown> = { ...inputs };
 
@@ -1194,7 +1175,7 @@ export class MCPServer {
     inputKey: string,
     artifactId: string,
     data: Buffer,
-    mimeType: string
+    mimeType: string,
   ): void {
     const baseName =
       inputKey === 'artifact_id' ? 'artifact' : inputKey.replace(/_artifact_id$/, '');
@@ -1269,7 +1250,7 @@ export class MCPServer {
 
   private async evaluateWithLLM(
     prompt: string,
-    artifact: Artifact
+    artifact: Artifact,
   ): Promise<{ pass: boolean; reasoning: string; score?: number }> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -1338,7 +1319,7 @@ export class MCPServer {
 
   private async evaluateCustomGate(
     artifact: Artifact,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): Promise<boolean> {
     const customCheckFn = config.customCheckFn;
     if (typeof customCheckFn === 'function') {
@@ -1349,10 +1330,10 @@ export class MCPServer {
       const compiled = new Function(
         'artifact',
         'context',
-        `"use strict"; return (${customCheckFn})(artifact, context);`
+        `"use strict"; return (${customCheckFn})(artifact, context);`,
       ) as (
         artifactArg: Artifact,
-        contextArg: Record<string, unknown>
+        contextArg: Record<string, unknown>,
       ) => boolean | Promise<boolean>;
       return await Promise.resolve(compiled(artifact, config));
     }
