@@ -1,6 +1,10 @@
-import { createClient, DeepgramClient, SyncPrerecordedResponse } from '@deepgram/sdk';
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { type DeepgramClient, type SyncPrerecordedResponse, createClient } from '@deepgram/sdk';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface DeepgramProviderConfig {
   apiKey: string;
@@ -176,7 +180,7 @@ export class DeepgramProvider extends MediaProvider {
   }
 
   private extractSegments(
-    result: SyncPrerecordedResponse
+    result: SyncPrerecordedResponse,
   ): Array<{ text: string; start: number; end: number; confidence: number }> {
     const words = result.results?.channels?.[0]?.alternatives?.[0]?.words || [];
     return words.map((w: { word?: string; start?: number; end?: number; confidence?: number }) => ({

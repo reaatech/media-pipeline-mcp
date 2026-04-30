@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/google",
+  "name": "@reaatech/media-pipeline-mcp-google",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -22,11 +22,27 @@
   "dependencies": {
     "@google-cloud/aiplatform": "^3.0.0",
     "@google-cloud/documentai": "^4.0.0",
-    "@media-pipeline/provider-core": "workspace:*"
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "Google Cloud provider — Document AI for OCR/table/field extraction, Vertex AI Gemini for image description",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/providers/google"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/providers/google#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

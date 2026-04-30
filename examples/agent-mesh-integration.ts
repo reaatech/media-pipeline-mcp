@@ -1,6 +1,6 @@
 /**
  * Example: Agent Mesh Integration
- * 
+ *
  * Demonstrates how agent-mesh orchestrator delegates media tasks to this MCP server.
  * This shows media as a service in a multi-agent system.
  */
@@ -16,7 +16,7 @@ class AgentMeshOrchestrator {
   constructor(mediaServerUrl: string) {
     this.mediaClient = new Client(
       { name: 'agent-mesh-orchestrator', version: '1.0.0' },
-      { capabilities: {} }
+      { capabilities: {} },
     );
     this.transport = new StreamableHTTPClientTransport(new URL(mediaServerUrl));
   }
@@ -30,7 +30,7 @@ class AgentMeshOrchestrator {
     console.log(`[Agent Mesh] Delegating task: ${task}`);
     const result = await this.mediaClient.callTool({
       name: task,
-      arguments: params
+      arguments: params,
     });
     console.log(`[Agent Mesh] Task completed: ${task}\n`);
     return result;
@@ -40,7 +40,7 @@ class AgentMeshOrchestrator {
     console.log('[Agent Mesh] Executing media pipeline');
     const result = await this.mediaClient.callTool({
       name: 'media.pipeline.run',
-      arguments: { pipeline: pipelineDefinition }
+      arguments: { pipeline: pipelineDefinition },
     });
     console.log('[Agent Mesh] Pipeline completed\n');
     return result;
@@ -62,7 +62,7 @@ async function agentMeshIntegration() {
   const imageResult = await orchestrator.delegateMediaTask('image.generate', {
     prompt: 'Modern tech startup office with diverse team collaborating',
     dimensions: '1920x1080',
-    model: 'sd3'
+    model: 'sd3',
   });
   console.log('Generated image artifact:', imageResult.artifact_id || 'none');
   console.log('');
@@ -76,44 +76,44 @@ async function agentMeshIntegration() {
         id: 'generate',
         operation: 'image.generate',
         inputs: {
-          prompt: 'Minimalist logo for AI startup, blue and white'
+          prompt: 'Minimalist logo for AI startup, blue and white',
         },
         config: {
           dimensions: '1024x1024',
-          model: 'sd3'
-        }
+          model: 'sd3',
+        },
       },
       {
         id: 'resize_square',
         operation: 'image.resize',
         inputs: {
-          artifact_id: '{{generate.output}}'
+          artifact_id: '{{generate.output}}',
         },
         config: {
-          dimensions: '1080x1080'
-        }
+          dimensions: '1080x1080',
+        },
       },
       {
         id: 'resize_story',
         operation: 'image.resize',
         inputs: {
-          artifact_id: '{{generate.output}}'
+          artifact_id: '{{generate.output}}',
         },
         config: {
-          dimensions: '1080x1920'
-        }
+          dimensions: '1080x1920',
+        },
       },
       {
         id: 'resize_banner',
         operation: 'image.resize',
         inputs: {
-          artifact_id: '{{generate.output}}'
+          artifact_id: '{{generate.output}}',
         },
         config: {
-          dimensions: '1500x500'
-        }
-      }
-    ]
+          dimensions: '1500x500',
+        },
+      },
+    ],
   });
   console.log('Social media kit artifacts:', pipelineResult.artifacts?.length || 0);
   console.log('');

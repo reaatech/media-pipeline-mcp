@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/core",
+  "name": "@reaatech/media-pipeline-mcp",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -26,5 +26,21 @@
     "@types/node": "^20.11.24",
     "@types/uuid": "^9.0.8",
     "@vitest/coverage-v8": "^4.1.4"
-  }
+  },
+  "description": "Core framework for media pipeline orchestration \u2014 types, execution engine, validation, quality gates, artifact registry, and mock provider",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

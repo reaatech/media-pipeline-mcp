@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { PipelineOperations } from './pipeline-operations.js';
-import { ArtifactRegistry } from '@media-pipeline/core';
 
 describe('PipelineOperations', () => {
   let artifactRegistry: ArtifactRegistry;
@@ -26,8 +26,8 @@ describe('PipelineOperations', () => {
       const template = operations.getTemplate('product-photo');
 
       expect(template).toBeDefined();
-      expect(template!.name).toBe('Product Photo Pipeline');
-      expect(template!.steps.length).toBe(3);
+      expect(template?.name).toBe('Product Photo Pipeline');
+      expect(template?.steps.length).toBe(3);
     });
 
     it('should return undefined for non-existent template', async () => {

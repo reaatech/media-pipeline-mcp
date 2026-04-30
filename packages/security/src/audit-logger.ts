@@ -145,7 +145,7 @@ export class AuditLogger {
     success: boolean,
     duration_ms: number,
     cost_usd: number,
-    tenantId?: string
+    tenantId?: string,
   ): void {
     this.log({
       eventType: success ? 'pipeline.execute' : 'pipeline.execute',
@@ -164,7 +164,7 @@ export class AuditLogger {
     userId: string,
     artifactId: string,
     action: 'read' | 'create' | 'delete',
-    success: boolean
+    success: boolean,
   ): void {
     this.log({
       eventType: `artifact.${action}`,
@@ -278,15 +278,15 @@ export class AuditLogger {
 
   private async writeToFile(events: AuditEvent[]): Promise<void> {
     // Write to local file as backup
-    const fs = await import('fs/promises');
-    const path = await import('path');
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
     const logDir = path.join(process.cwd(), 'logs', 'audit');
     await fs.mkdir(logDir, { recursive: true });
 
     const date = new Date().toISOString().split('T')[0];
     const logFile = path.join(logDir, `audit-${date}.jsonl`);
 
-    await fs.appendFile(logFile, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+    await fs.appendFile(logFile, `${events.map((e) => JSON.stringify(e)).join('\n')}\n`);
   }
 
   private generateId(): string {

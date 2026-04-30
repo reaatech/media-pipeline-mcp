@@ -1,6 +1,6 @@
 /**
  * Example: Document Intake Pipeline
- * 
+ *
  * Demonstrates the document-intake template pipeline:
  * OCR → extract fields → validate → summarize
  */
@@ -11,7 +11,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 async function documentIntakePipeline() {
   const client = new Client(
     { name: 'example-document-intake', version: '1.0.0' },
-    { capabilities: {} }
+    { capabilities: {} },
   );
 
   const transport = new StreamableHTTPClientTransport(new URL('http://localhost:8080'));
@@ -27,17 +27,17 @@ async function documentIntakePipeline() {
         id: 'ocr',
         operation: 'document.ocr',
         inputs: {
-          artifact_id: 'invoice-scan-001' // Pre-uploaded image of invoice
+          artifact_id: 'invoice-scan-001', // Pre-uploaded image of invoice
         },
         config: {
-          output_format: 'structured_json'
-        }
+          output_format: 'structured_json',
+        },
       },
       {
         id: 'extract_fields',
         operation: 'document.extract_fields',
         inputs: {
-          artifact_id: '{{ocr.output}}'
+          artifact_id: '{{ocr.output}}',
         },
         config: {
           field_schema: {
@@ -46,22 +46,22 @@ async function documentIntakePipeline() {
             vendor_name: 'string',
             total_amount: 'number',
             tax_amount: 'number',
-            line_items: 'array'
-          }
-        }
+            line_items: 'array',
+          },
+        },
       },
       {
         id: 'summarize',
         operation: 'document.summarize',
         inputs: {
-          artifact_id: '{{extract_fields.output}}'
+          artifact_id: '{{extract_fields.output}}',
         },
         config: {
           length: 'short',
-          style: 'structured'
-        }
-      }
-    ]
+          style: 'structured',
+        },
+      },
+    ],
   };
 
   // Step 1: Define and validate the pipeline
@@ -69,8 +69,8 @@ async function documentIntakePipeline() {
   const defineResult = await client.callTool({
     name: 'media.pipeline.define',
     arguments: {
-      pipeline: pipelineDefinition
-    }
+      pipeline: pipelineDefinition,
+    },
   });
   console.log('Pipeline definition result:', JSON.stringify(defineResult, null, 2));
   console.log('');
@@ -86,8 +86,8 @@ async function documentIntakePipeline() {
   const runResult = await client.callTool({
     name: 'media.pipeline.run',
     arguments: {
-      pipeline: pipelineDefinition
-    }
+      pipeline: pipelineDefinition,
+    },
   });
   console.log('Pipeline execution result:', JSON.stringify(runResult, null, 2));
   console.log('');

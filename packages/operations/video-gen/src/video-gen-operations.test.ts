@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { Readable } from 'node:stream';
+import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { ProviderOutput } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ArtifactMeta,
+  ArtifactStore,
+  StorageResult,
+} from '@reaatech/media-pipeline-mcp-storage';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { VideoGenOperations } from './video-gen-operations.js';
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta, StorageResult } from '@media-pipeline/storage';
-import type { ProviderOutput } from '@media-pipeline/provider-core';
-import { Readable } from 'stream';
 
 interface MockProvider {
   name: string;
@@ -54,7 +58,7 @@ class MockStorage implements ArtifactStore {
 function createMockProvider(
   name: string,
   supportedOperations: string[],
-  mockResult: ProviderOutput
+  mockResult: ProviderOutput,
 ): MockProvider {
   return {
     name,
@@ -81,7 +85,7 @@ describe('VideoGenOperations', () => {
         data: Buffer.from('mock-video-data'),
         mimeType: 'video/mp4',
         costUsd: 0.02,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -90,7 +94,7 @@ describe('VideoGenOperations', () => {
         data: Buffer.from('mock-image-data'),
         mimeType: 'image/png',
         costUsd: 0.001,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -99,7 +103,7 @@ describe('VideoGenOperations', () => {
         data: Buffer.from('mock-audio-data'),
         mimeType: 'audio/aac',
         costUsd: 0.001,
-      })
+      }),
     );
   });
 
@@ -199,7 +203,7 @@ describe('VideoGenOperations', () => {
   describe('extractFrames', () => {
     it('should extract frames from video at default interval', async () => {
       // Skip if ffmpeg is not available
-      const { execSync } = await import('child_process');
+      const { execSync } = await import('node:child_process');
       try {
         execSync('which ffmpeg', { stdio: 'ignore' });
       } catch {
@@ -233,7 +237,7 @@ describe('VideoGenOperations', () => {
 
     it('should extract frames at custom interval', async () => {
       // Skip if ffmpeg is not available
-      const { execSync } = await import('child_process');
+      const { execSync } = await import('node:child_process');
       try {
         execSync('which ffmpeg', { stdio: 'ignore' });
       } catch {
@@ -265,7 +269,7 @@ describe('VideoGenOperations', () => {
 
     it('should extract frames at specific timestamps', async () => {
       // Skip if ffmpeg is not available
-      const { execSync } = await import('child_process');
+      const { execSync } = await import('node:child_process');
       try {
         execSync('which ffmpeg', { stdio: 'ignore' });
       } catch {
@@ -310,7 +314,7 @@ describe('VideoGenOperations', () => {
   describe('extractAudio', () => {
     it('should extract audio from video', async () => {
       // Skip if ffmpeg is not available
-      const { execSync } = await import('child_process');
+      const { execSync } = await import('node:child_process');
       try {
         execSync('which ffmpeg', { stdio: 'ignore' });
       } catch {
@@ -345,7 +349,7 @@ describe('VideoGenOperations', () => {
 
     it('should preserve audio metadata', async () => {
       // Skip if ffmpeg is not available
-      const { execSync } = await import('child_process');
+      const { execSync } = await import('node:child_process');
       try {
         execSync('which ffmpeg', { stdio: 'ignore' });
       } catch {

@@ -47,7 +47,7 @@ This document outlines the security controls, vulnerability reporting process, a
 We take security vulnerabilities seriously. If you discover a security issue:
 
 1. **Do NOT** create a public GitHub issue
-2. Email security@media-pipeline.dev with details
+2. Email security@reaatech.com with details
 3. Include steps to reproduce the issue
 4. We will respond within 48 hours
 
@@ -148,6 +148,6 @@ export default {
 
 ### Contact
 
-- **Security Email**: security@media-pipeline.dev
+- **Security Email**: security@reaatech.com
 - **PGP Key**: Available on request
 - **Incident Hotline**: See repository for contact details (24/7 for critical incidents)

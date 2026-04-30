@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ToolRegistry, toolRegistry } from './tool-registry.js';
 
 describe('ToolRegistry', () => {

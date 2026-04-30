@@ -1,6 +1,10 @@
 import { fal } from '@fal-ai/client';
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface FalProviderConfig {
   apiKey: string;
@@ -152,7 +156,7 @@ export class FalProvider extends MediaProvider {
         const arrayBuffer = await response.arrayBuffer();
         data = Buffer.from(arrayBuffer);
         mimeType = response.headers.get('content-type') || 'image/png';
-      } else if (falResult.video && falResult.video.url) {
+      } else if (falResult.video?.url) {
         const videoUrl = falResult.video.url;
         const response = await fetch(videoUrl);
         const arrayBuffer = await response.arrayBuffer();

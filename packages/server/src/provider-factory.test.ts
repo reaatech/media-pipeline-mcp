@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ctorSpy = vi.fn();
 
-vi.mock('@media-pipeline/openai', () => ({
+vi.mock('@reaatech/media-pipeline-mcp-openai', () => ({
   OpenAIProvider: class {
     name = 'openai';
     supportedOperations = ['image.generate'];
@@ -14,7 +14,7 @@ vi.mock('@media-pipeline/openai', () => ({
   },
 }));
 
-vi.mock('@media-pipeline/google', () => ({
+vi.mock('@reaatech/media-pipeline-mcp-google', () => ({
   GoogleProvider: class {
     name = 'google';
     supportedOperations = ['document.ocr'];
@@ -26,12 +26,12 @@ vi.mock('@media-pipeline/google', () => ({
   },
 }));
 
-vi.mock('@media-pipeline/stability', () => ({ StabilityProvider: class {} }));
-vi.mock('@media-pipeline/replicate', () => ({ ReplicateProvider: class {} }));
-vi.mock('@media-pipeline/fal', () => ({ FalProvider: class {} }));
-vi.mock('@media-pipeline/elevenlabs', () => ({ ElevenLabsProvider: class {} }));
-vi.mock('@media-pipeline/deepgram', () => ({ DeepgramProvider: class {} }));
-vi.mock('@media-pipeline/anthropic', () => ({ AnthropicProvider: class {} }));
+vi.mock('@reaatech/media-pipeline-mcp-stability', () => ({ StabilityProvider: class {} }));
+vi.mock('@reaatech/media-pipeline-mcp-replicate', () => ({ ReplicateProvider: class {} }));
+vi.mock('@reaatech/media-pipeline-mcp-fal', () => ({ FalProvider: class {} }));
+vi.mock('@reaatech/media-pipeline-mcp-elevenlabs', () => ({ ElevenLabsProvider: class {} }));
+vi.mock('@reaatech/media-pipeline-mcp-deepgram', () => ({ DeepgramProvider: class {} }));
+vi.mock('@reaatech/media-pipeline-mcp-anthropic', () => ({ AnthropicProvider: class {} }));
 
 import { createProvider } from './provider-factory.js';
 
@@ -51,7 +51,7 @@ describe('createProvider', () => {
     expect(provider).toBeTruthy();
     expect(ctorSpy).toHaveBeenCalledWith({ apiKey: 'openai-key' });
 
-    delete process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = undefined;
   });
 
   it('should create google provider without requiring GOOGLE_API_KEY', () => {

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FalProvider } from './fal-provider.js';
-import type { ProviderInput } from '@media-pipeline/provider-core';
 
 // Mock the fal client
 vi.mock('@fal-ai/client', () => {
@@ -41,7 +41,7 @@ describe('FalProvider', () => {
           }),
           arrayBuffer: async () => Buffer.from('mock-media'),
         };
-      })
+      }),
     );
 
     provider = new FalProvider({
@@ -190,15 +190,15 @@ describe('FalProvider', () => {
     it('should parse aspect ratios correctly', () => {
       // Test via execute with different aspect ratios
       const ratios = ['1:1', '16:9', '9:16', '4:3', '3:4'];
-      ratios.forEach((ratio) => {
+      for (const ratio of ratios) {
         expect(() =>
           provider.execute({
             operation: 'image.generate',
             config: {},
             params: { prompt: 'test', aspect_ratio: ratio },
-          })
+          }),
         ).not.toThrow();
-      });
+      }
     });
   });
 });

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { Provider } from '@media-pipeline/core';
+import type { Provider } from '@reaatech/media-pipeline-mcp';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderRegistry } from './provider-registry.js';
 
 const createMockProvider = (name: string, operations: string[], healthy = true): Provider => ({

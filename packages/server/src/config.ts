@@ -1,5 +1,5 @@
+import type { StorageConfig } from '@reaatech/media-pipeline-mcp-storage';
 import { z } from 'zod';
-import type { StorageConfig } from '@media-pipeline/storage';
 
 // Configuration schema
 const StorageConfigSchema: z.ZodType<StorageConfig> = z.discriminatedUnion('type', [
@@ -49,7 +49,7 @@ const AuthConfigSchema = z
           key: z.string(),
           userId: z.string(),
           permissions: z.array(z.string()),
-        })
+        }),
       )
       .optional(),
   })
@@ -58,7 +58,7 @@ const AuthConfigSchema = z
       !config.enabled ||
       (config.jwtSecret && config.jwtSecret.length >= 32) ||
       (config.apiKeys && config.apiKeys.length > 0),
-    { message: 'When auth is enabled, either jwtSecret (min 32 chars) or apiKeys is required' }
+    { message: 'When auth is enabled, either jwtSecret (min 32 chars) or apiKeys is required' },
   );
 
 export const ServerConfigSchema = z.object({
@@ -72,7 +72,7 @@ export const ServerConfigSchema = z.object({
         name: z.string(),
         operations: z.array(z.string()),
         config: z.record(z.unknown()).optional(),
-      })
+      }),
     )
     .default([]),
   auth: AuthConfigSchema.optional(),
@@ -125,14 +125,14 @@ export function loadConfig(env?: NodeJS.ProcessEnv): ServerConfig {
         },
       };
       break;
-
-    case 'local':
     default:
       storageConfig = {
         type: 'local',
         config: {
           basePath: environment.STORAGE_PATH || './artifacts',
-          ttl: environment.STORAGE_TTL ? parseInt(environment.STORAGE_TTL) * 1000 : undefined,
+          ttl: environment.STORAGE_TTL
+            ? Number.parseInt(environment.STORAGE_TTL) * 1000
+            : undefined,
           serveHttp: environment.STORAGE_SERVE_HTTP === 'true',
         },
       };
@@ -140,7 +140,7 @@ export function loadConfig(env?: NodeJS.ProcessEnv): ServerConfig {
   }
 
   const config: ServerConfig = {
-    port: parseInt(environment.PORT || '8080'),
+    port: Number.parseInt(environment.PORT || '8080'),
     host: environment.HOST || '0.0.0.0',
     logLevel: (environment.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug') || 'info',
     storage: storageConfig,
@@ -234,25 +234,25 @@ export function loadConfig(env?: NodeJS.ProcessEnv): ServerConfig {
       environment.RATE_LIMIT_ENABLED !== 'false'
         ? {
             enabled: true,
-            clientRequestsPerMinute: parseInt(environment.RATE_LIMIT_RPM || '60'),
-            clientBurstSize: parseInt(environment.RATE_LIMIT_BURST || '10'),
-            expensiveOperationsPerMinute: parseInt(environment.EXPENSIVE_OPS_RPM || '10'),
+            clientRequestsPerMinute: Number.parseInt(environment.RATE_LIMIT_RPM || '60'),
+            clientBurstSize: Number.parseInt(environment.RATE_LIMIT_BURST || '10'),
+            expensiveOperationsPerMinute: Number.parseInt(environment.EXPENSIVE_OPS_RPM || '10'),
           }
         : undefined,
     budget:
       environment.BUDGET_DAILY_LIMIT || environment.BUDGET_MONTHLY_LIMIT
         ? {
             dailyLimit: environment.BUDGET_DAILY_LIMIT
-              ? parseFloat(environment.BUDGET_DAILY_LIMIT)
+              ? Number.parseFloat(environment.BUDGET_DAILY_LIMIT)
               : undefined,
             monthlyLimit: environment.BUDGET_MONTHLY_LIMIT
-              ? parseFloat(environment.BUDGET_MONTHLY_LIMIT)
+              ? Number.parseFloat(environment.BUDGET_MONTHLY_LIMIT)
               : undefined,
             perPipelineLimit: environment.BUDGET_PER_PIPELINE_LIMIT
-              ? parseFloat(environment.BUDGET_PER_PIPELINE_LIMIT)
+              ? Number.parseFloat(environment.BUDGET_PER_PIPELINE_LIMIT)
               : undefined,
             alertThreshold: environment.BUDGET_ALERT_THRESHOLD
-              ? parseFloat(environment.BUDGET_ALERT_THRESHOLD)
+              ? Number.parseFloat(environment.BUDGET_ALERT_THRESHOLD)
               : 0.9,
           }
         : undefined,

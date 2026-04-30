@@ -62,7 +62,7 @@ export class PipelineValidator {
         estimatedCost += this.providerAvailability.getEstimatedCost(step.operation, step.config);
         estimatedDuration += this.providerAvailability.getEstimatedDuration(
           step.operation,
-          step.config
+          step.config,
         );
       } else {
         warnings.push(`Provider not available for operation: ${step.operation}`);
@@ -92,7 +92,7 @@ export class PipelineValidator {
 
           if (!definedStepIds.has(referencedStepId)) {
             errors.push(
-              `Step '${step.id}' references non-existent step '${referencedStepId}' in input '${paramName}'`
+              `Step '${step.id}' references non-existent step '${referencedStepId}' in input '${paramName}'`,
             );
             continue;
           }
@@ -103,7 +103,7 @@ export class PipelineValidator {
 
           if (referencedIndex >= currentIndex) {
             errors.push(
-              `Step '${step.id}' references future step '${referencedStepId}' (circular/forward reference not allowed)`
+              `Step '${step.id}' references future step '${referencedStepId}' (circular/forward reference not allowed)`,
             );
           }
 
@@ -140,7 +140,7 @@ export class PipelineValidator {
         // Check for retry without maxRetries
         if (gate.action === 'retry' && gate.maxRetries === undefined) {
           warnings.push(
-            `Step '${step.id}' has retry action but no maxRetries specified (defaulting to 1)`
+            `Step '${step.id}' has retry action but no maxRetries specified (defaulting to 1)`,
           );
         }
 

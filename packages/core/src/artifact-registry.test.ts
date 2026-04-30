@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ArtifactRegistry } from './artifact-registry.js';
 
 describe('ArtifactRegistry', () => {
@@ -55,7 +55,7 @@ describe('ArtifactRegistry', () => {
 
       const retrieved = registry.get(artifact.id);
       expect(retrieved).toBeDefined();
-      expect(retrieved!.id).toBe(artifact.id);
+      expect(retrieved?.id).toBe(artifact.id);
     });
 
     it('should return undefined for non-existent id', () => {
@@ -127,7 +127,7 @@ describe('ArtifactRegistry', () => {
 
       const found = registry.findBySourceStep('step-123');
       expect(found).toBeDefined();
-      expect(found!.id).toBe(artifact.id);
+      expect(found?.id).toBe(artifact.id);
     });
 
     it('should return undefined for non-existent sourceStep', () => {

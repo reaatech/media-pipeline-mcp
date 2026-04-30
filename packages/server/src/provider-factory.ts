@@ -1,13 +1,13 @@
-import type { Provider } from '@media-pipeline/core';
-import { MockProvider } from '@media-pipeline/core';
-import { StabilityProvider } from '@media-pipeline/stability';
-import { OpenAIProvider } from '@media-pipeline/openai';
-import { ReplicateProvider } from '@media-pipeline/replicate';
-import { FalProvider } from '@media-pipeline/fal';
-import { ElevenLabsProvider } from '@media-pipeline/elevenlabs';
-import { DeepgramProvider } from '@media-pipeline/deepgram';
-import { AnthropicProvider } from '@media-pipeline/anthropic';
-import { GoogleProvider } from '@media-pipeline/google';
+import type { Provider } from '@reaatech/media-pipeline-mcp';
+import { MockProvider } from '@reaatech/media-pipeline-mcp';
+import { AnthropicProvider } from '@reaatech/media-pipeline-mcp-anthropic';
+import { DeepgramProvider } from '@reaatech/media-pipeline-mcp-deepgram';
+import { ElevenLabsProvider } from '@reaatech/media-pipeline-mcp-elevenlabs';
+import { FalProvider } from '@reaatech/media-pipeline-mcp-fal';
+import { GoogleProvider } from '@reaatech/media-pipeline-mcp-google';
+import { OpenAIProvider } from '@reaatech/media-pipeline-mcp-openai';
+import { ReplicateProvider } from '@reaatech/media-pipeline-mcp-replicate';
+import { StabilityProvider } from '@reaatech/media-pipeline-mcp-stability';
 import { ProviderAdapter } from './provider-adapter.js';
 
 export interface ProviderConfig {
@@ -16,13 +16,15 @@ export interface ProviderConfig {
   config?: Record<string, unknown>;
 }
 
-type MediaProviderConstructor = new (config: Record<string, unknown>) => {
+type MediaProviderConstructor = new (
+  config: Record<string, unknown>,
+) => {
   name: string;
   supportedOperations: string[];
   execute(
     operation: string,
     params: Record<string, unknown>,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): Promise<{
     data: Buffer | ReadableStream;
     mimeType: string;
@@ -157,7 +159,7 @@ export function createProviders(configs: ProviderConfig[]): Provider[] {
         ],
         delay: 100,
         baseCost: 0.001,
-      })
+      }),
     );
   }
 

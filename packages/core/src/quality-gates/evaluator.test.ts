@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { Artifact, QualityGate } from '../types/index.js';
 import {
-  ThresholdEvaluator,
   DimensionCheckEvaluator,
   LLMJudgeEvaluator,
+  ThresholdEvaluator,
   createQualityGateEvaluator,
 } from './evaluator.js';
-import type { QualityGate, Artifact } from '../types/index.js';
 
 describe('Quality Gate Evaluators', () => {
   const createMockArtifact = (metadata: Record<string, unknown> = {}): Artifact => ({

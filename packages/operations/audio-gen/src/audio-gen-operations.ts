@@ -1,7 +1,7 @@
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { Artifact } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta } from '@media-pipeline/storage';
-import type { MediaProvider, ProviderInput } from '@media-pipeline/provider-core';
+import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { Artifact } from '@reaatech/media-pipeline-mcp';
+import type { MediaProvider, ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface TTSConfig {
@@ -56,7 +56,7 @@ export class AudioGenOperations {
 
   constructor(
     private artifactRegistry: ArtifactRegistry,
-    private storage: ArtifactStore
+    private storage: ArtifactStore,
   ) {}
 
   /**
@@ -509,7 +509,7 @@ export class AudioGenOperations {
 
 export function createAudioGenOperations(
   artifactRegistry: ArtifactRegistry,
-  storage: ArtifactStore
+  storage: ArtifactStore,
 ): AudioGenOperations {
   return new AudioGenOperations(artifactRegistry, storage);
 }

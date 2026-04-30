@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/storage",
+  "name": "@reaatech/media-pipeline-mcp-storage",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -22,7 +22,7 @@
     "@aws-sdk/client-s3": "^3.1032.0",
     "@aws-sdk/s3-request-presigner": "^3.1032.0",
     "@google-cloud/storage": "^7.19.0",
-    "@media-pipeline/core": "workspace:*",
+    "@reaatech/media-pipeline-mcp": "workspace:*",
     "@smithy/protocol-http": "^5.3.14",
     "zod": "^3.22.4"
   },
@@ -30,5 +30,21 @@
     "@types/node": "^20.19.39",
     "@vitest/coverage-v8": "4.1.4",
     "vitest": "4.1.4"
-  }
+  },
+  "description": "Storage abstraction layer for media artifact persistence across local filesystem, AWS S3, and Google Cloud Storage",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/storage"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/storage#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

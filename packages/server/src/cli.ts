@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { MCPServer } from './mcp-server.js';
 import { loadConfig } from './config.js';
+import { MCPServer } from './mcp-server.js';
 
 async function main() {
   const config = loadConfig();

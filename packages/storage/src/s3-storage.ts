@@ -1,4 +1,4 @@
-import type { ArtifactStore, StorageResult, ArtifactMeta, S3StorageConfig } from './types.js';
+import type { ArtifactMeta, ArtifactStore, S3StorageConfig, StorageResult } from './types.js';
 
 export class S3Storage implements ArtifactStore {
   private bucket: string;
@@ -60,7 +60,7 @@ export class S3Storage implements ArtifactStore {
           sourceStep: meta.sourceStep || '',
           metadata: JSON.stringify(meta.metadata || {}),
         },
-      })
+      }),
     );
 
     return `s3://${this.bucket}/${key}`;
@@ -77,7 +77,7 @@ export class S3Storage implements ArtifactStore {
         new GetObjectCommand({
           Bucket: this.bucket,
           Key: key,
-        })
+        }),
       );
 
       // Reconstruct metadata from S3 object metadata
@@ -130,7 +130,7 @@ export class S3Storage implements ArtifactStore {
       new DeleteObjectCommand({
         Bucket: this.bucket,
         Key: key,
-      })
+      }),
     );
   }
 
@@ -144,7 +144,7 @@ export class S3Storage implements ArtifactStore {
       new ListObjectsV2Command({
         Bucket: this.bucket,
         Prefix: listPrefix,
-      })
+      }),
     );
 
     const metas: ArtifactMeta[] = [];
@@ -177,7 +177,7 @@ export class S3Storage implements ArtifactStore {
       await client.send(
         new HeadBucketCommand({
           Bucket: this.bucket,
-        })
+        }),
       );
 
       return true;

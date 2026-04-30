@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Readable } from 'node:stream';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { S3Storage } from './s3-storage.ts';
-import { Readable } from 'stream';
 
 const mockSend = vi.fn();
 

@@ -34,7 +34,7 @@ export class MockProvider implements Provider {
   async execute(
     operation: string,
     _inputs: Record<string, unknown>,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): Promise<{
     data?: Buffer | NodeJS.ReadableStream;
     artifact: Omit<Artifact, 'id' | 'createdAt'>;

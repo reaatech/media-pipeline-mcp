@@ -583,7 +583,7 @@ export class ToolRegistry {
 
   validateInput(
     toolName: string,
-    input: Record<string, unknown>
+    input: Record<string, unknown>,
   ): { valid: boolean; errors: string[] } {
     const tool = this.tools.get(toolName);
     if (!tool) {

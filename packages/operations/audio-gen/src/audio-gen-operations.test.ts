@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { Readable } from 'node:stream';
+import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { ProviderOutput } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ArtifactMeta,
+  ArtifactStore,
+  StorageResult,
+} from '@reaatech/media-pipeline-mcp-storage';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { AudioGenOperations } from './audio-gen-operations.js';
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta, StorageResult } from '@media-pipeline/storage';
-import type { ProviderOutput } from '@media-pipeline/provider-core';
-import { Readable } from 'stream';
 
 interface MockProvider {
   name: string;
@@ -54,7 +58,7 @@ class MockStorage implements ArtifactStore {
 class TestArtifactRegistry extends ArtifactRegistry {
   registerWithId(
     artifact: { type: string; uri: string; mimeType: string; metadata: Record<string, unknown> },
-    id: string
+    id: string,
   ) {
     const fullArtifact = {
       ...artifact,
@@ -69,7 +73,7 @@ class TestArtifactRegistry extends ArtifactRegistry {
 function createMockProvider(
   name: string,
   supportedOperations: string[],
-  mockResult: ProviderOutput
+  mockResult: ProviderOutput,
 ): MockProvider {
   return {
     name,
@@ -96,7 +100,7 @@ describe('AudioGenOperations', () => {
         data: Buffer.from('mock-audio-data'),
         mimeType: 'audio/mp3',
         costUsd: 0.001,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -107,11 +111,11 @@ describe('AudioGenOperations', () => {
             text: 'Hello world',
             confidence: 0.95,
             segments: [{ start: 0, end: 1, text: 'Hello world' }],
-          })
+          }),
         ),
         mimeType: 'application/json',
         costUsd: 0.001,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -120,7 +124,7 @@ describe('AudioGenOperations', () => {
         data: Buffer.from('mock-isolated-audio'),
         mimeType: 'audio/wav',
         costUsd: 0.002,
-      })
+      }),
     );
   });
 
@@ -142,7 +146,7 @@ describe('AudioGenOperations', () => {
         mimeType: 'audio/mp3',
         metadata: { duration },
       },
-      id
+      id,
     );
 
     return id;
@@ -210,7 +214,7 @@ describe('AudioGenOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.speechToText(id)).rejects.toThrow('is not an audio file');
@@ -247,7 +251,7 @@ describe('AudioGenOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.diarize(id)).rejects.toThrow('is not an audio file');
@@ -284,11 +288,11 @@ describe('AudioGenOperations', () => {
           mimeType: 'text/plain',
           metadata: {},
         },
-        id
+        id,
       );
 
       await expect(operations.isolate(id, { target: 'vocals' })).rejects.toThrow(
-        'is not an audio file'
+        'is not an audio file',
       );
     });
   });

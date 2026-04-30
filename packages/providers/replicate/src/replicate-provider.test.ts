@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicateProvider } from './replicate-provider.js';
-import type { ProviderInput } from '@media-pipeline/provider-core';
 
 // Mock the replicate client
 vi.mock('replicate', () => {

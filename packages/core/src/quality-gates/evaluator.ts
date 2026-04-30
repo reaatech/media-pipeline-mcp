@@ -1,4 +1,4 @@
-import type { QualityGate, QualityGateResult, Artifact } from '../types/index.js';
+import type { Artifact, QualityGate, QualityGateResult } from '../types/index.js';
 
 export interface QualityGateEvaluator {
   evaluate(gate: QualityGate, artifact: Artifact): Promise<QualityGateResult>;
@@ -35,7 +35,7 @@ export class ThresholdEvaluator implements QualityGateEvaluator {
       }
 
       const numActual = Number(actual);
-      if (isNaN(numActual)) {
+      if (Number.isNaN(numActual)) {
         failures.push(`Field '${field}' is not numeric: ${actual}`);
         continue;
       }
@@ -141,14 +141,14 @@ export class DimensionCheckEvaluator implements QualityGateEvaluator {
 export class LLMJudgeEvaluator implements QualityGateEvaluator {
   private evaluateFn: (
     prompt: string,
-    artifact: Artifact
+    artifact: Artifact,
   ) => Promise<{ pass: boolean; reasoning: string; score?: number }>;
 
   constructor(
     evaluateFn: (
       prompt: string,
-      artifact: Artifact
-    ) => Promise<{ pass: boolean; reasoning: string; score?: number }>
+      artifact: Artifact,
+    ) => Promise<{ pass: boolean; reasoning: string; score?: number }>,
   ) {
     this.evaluateFn = evaluateFn;
   }
@@ -173,7 +173,7 @@ export class LLMJudgeEvaluator implements QualityGateEvaluator {
         new Promise<never>((_, reject) => {
           timeoutId = setTimeout(
             () => reject(new Error(`LLM-judge timeout after ${timeoutMs}ms`)),
-            timeoutMs
+            timeoutMs,
           );
         }),
       ]);
@@ -197,11 +197,11 @@ export class LLMJudgeEvaluator implements QualityGateEvaluator {
 export class CustomEvaluator implements QualityGateEvaluator {
   private checkFn: (
     artifact: Artifact,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ) => boolean | Promise<boolean>;
 
   constructor(
-    checkFn: (artifact: Artifact, config: Record<string, unknown>) => boolean | Promise<boolean>
+    checkFn: (artifact: Artifact, config: Record<string, unknown>) => boolean | Promise<boolean>,
   ) {
     this.checkFn = checkFn;
   }
@@ -228,12 +228,12 @@ export function createQualityGateEvaluator(
   gate: QualityGate,
   llmJudgeFn?: (
     prompt: string,
-    artifact: Artifact
+    artifact: Artifact,
   ) => Promise<{ pass: boolean; reasoning: string; score?: number }>,
   customCheckFn?: (
     artifact: Artifact,
-    config: Record<string, unknown>
-  ) => boolean | Promise<boolean>
+    config: Record<string, unknown>,
+  ) => boolean | Promise<boolean>,
 ): QualityGateEvaluator {
   switch (gate.type) {
     case 'threshold':

@@ -1,4 +1,4 @@
-import type { ArtifactType } from '@media-pipeline/core';
+import type { ArtifactType } from '@reaatech/media-pipeline-mcp';
 
 export interface ArtifactMeta {
   id: string;
@@ -23,7 +23,7 @@ export interface ArtifactStore {
   put(
     id: string,
     data: Buffer | NodeJS.ReadableStream | unknown,
-    meta: ArtifactMeta
+    meta: ArtifactMeta,
   ): Promise<string>;
 
   /**

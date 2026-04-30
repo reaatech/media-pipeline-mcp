@@ -90,7 +90,7 @@ A standard DPA is available for enterprise customers covering:
 - **Breach Notification**: 72-hour notification requirement
 - **Data Return/Deletion**: Procedures for contract termination
 
-Contact your sales representative or email legal@media-pipeline.dev for DPA execution.
+Contact your sales representative or email legal@reaatech.com for DPA execution.
 
 ---
 
@@ -163,7 +163,7 @@ SIEM integration available for:
 
 ### Contact Information
 
-- **Security Email**: security@media-pipeline.dev
+- **Security Email**: security@reaatech.com
 - **Incident Hotline**: Available for Critical severity incidents
 - **PGP Key**: Available on request
 
@@ -219,7 +219,7 @@ Enterprise customers can request:
 - Custom DPA execution
 - Security questionnaire responses (CISO sign-off)
 
-Contact your account manager or email compliance@media-pipeline.dev.
+Contact your account manager or email compliance@reaatech.com.
 
 ---
 

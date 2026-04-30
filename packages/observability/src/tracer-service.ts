@@ -1,9 +1,9 @@
-import * as opentelemetry from '@opentelemetry/sdk-node';
+import { type Span, SpanStatusCode, context, trace } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
+import * as opentelemetry from '@opentelemetry/sdk-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { trace, Span, SpanStatusCode, context } from '@opentelemetry/api';
 import type { ObservabilityConfig } from './observability-service.js';
 
 export class TracerService {

@@ -1,13 +1,13 @@
 {
-  "name": "@media-pipeline/server",
+  "name": "@reaatech/media-pipeline-mcp-server",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "bin": {
@@ -23,17 +23,17 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@media-pipeline/core": "workspace:*",
-    "@media-pipeline/security": "workspace:*",
-    "@media-pipeline/storage": "workspace:*",
-    "@media-pipeline/anthropic": "workspace:*",
-    "@media-pipeline/deepgram": "workspace:*",
-    "@media-pipeline/elevenlabs": "workspace:*",
-    "@media-pipeline/fal": "workspace:*",
-    "@media-pipeline/google": "workspace:*",
-    "@media-pipeline/openai": "workspace:*",
-    "@media-pipeline/replicate": "workspace:*",
-    "@media-pipeline/stability": "workspace:*",
+    "@reaatech/media-pipeline-mcp": "workspace:*",
+    "@reaatech/media-pipeline-mcp-security": "workspace:*",
+    "@reaatech/media-pipeline-mcp-storage": "workspace:*",
+    "@reaatech/media-pipeline-mcp-anthropic": "workspace:*",
+    "@reaatech/media-pipeline-mcp-deepgram": "workspace:*",
+    "@reaatech/media-pipeline-mcp-elevenlabs": "workspace:*",
+    "@reaatech/media-pipeline-mcp-fal": "workspace:*",
+    "@reaatech/media-pipeline-mcp-google": "workspace:*",
+    "@reaatech/media-pipeline-mcp-openai": "workspace:*",
+    "@reaatech/media-pipeline-mcp-replicate": "workspace:*",
+    "@reaatech/media-pipeline-mcp-stability": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "zod": "^3.22.4"
   },
@@ -41,5 +41,21 @@
     "@types/node": "^20.11.24",
     "@vitest/coverage-v8": "4.1.4",
     "vitest": "4.1.4"
-  }
+  },
+  "description": "MCP server exposing 30+ media operations via StreamableHTTP \u2014 provider routing, cost tracking, pipeline execution",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/server"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/server#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

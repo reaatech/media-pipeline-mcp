@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { Readable } from 'node:stream';
+import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp';
+import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { DocumentExtractionOperations } from './document-extraction-operations.js';
-import { ArtifactRegistry } from '@media-pipeline/core';
-import type { ArtifactStore, ArtifactMeta } from '@media-pipeline/storage';
-import { Readable } from 'stream';
 
 interface MockProvider {
   name: string;
@@ -14,7 +14,7 @@ interface MockProvider {
 function createMockProvider(
   name: string,
   supportedOperations: string[],
-  mockResult: any
+  mockResult: any,
 ): MockProvider {
   return {
     name,
@@ -80,7 +80,7 @@ describe('DocumentExtractionOperations', () => {
         data: Buffer.from('extracted-text'),
         mimeType: 'text/plain',
         costUsd: 0.001,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -89,7 +89,7 @@ describe('DocumentExtractionOperations', () => {
         data: Buffer.from('table-data'),
         mimeType: 'text/markdown',
         costUsd: 0.002,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -98,7 +98,7 @@ describe('DocumentExtractionOperations', () => {
         data: Buffer.from('{"field": "value"}'),
         mimeType: 'application/json',
         costUsd: 0.001,
-      })
+      }),
     );
 
     operations.registerProvider(
@@ -107,7 +107,7 @@ describe('DocumentExtractionOperations', () => {
         data: Buffer.from('summary-text'),
         mimeType: 'text/plain',
         costUsd: 0.005,
-      })
+      }),
     );
   });
 

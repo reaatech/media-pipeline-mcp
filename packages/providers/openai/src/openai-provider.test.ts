@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenAIProvider } from './openai-provider.js';
 import type { OpenAIConfig } from './openai-provider.js';
 
@@ -34,7 +34,7 @@ describe('OpenAIProvider', () => {
           ok: true,
           status: 200,
           statusText: 'OK',
-        } as Response)
+        } as Response),
       );
 
       const result = await provider.healthCheck();
@@ -50,7 +50,7 @@ describe('OpenAIProvider', () => {
           operation: 'unsupported.operation',
           params: {},
           config: {},
-        })
+        }),
       ).rejects.toThrow('Unsupported operation');
     });
 
@@ -92,7 +92,7 @@ describe('OpenAIProvider', () => {
             quality: 'standard',
             style: 'natural',
           }),
-        })
+        }),
       );
       expect(result.metadata.size).toBe('1536x1024');
     });
@@ -137,7 +137,7 @@ describe('OpenAIProvider', () => {
         'https://api.openai.com/v1/chat/completions',
         expect.objectContaining({
           body: expect.stringContaining('Describe this image briefly'),
-        })
+        }),
       );
       expect(imageResult.metadata.detail).toBe('brief');
       expect(ttsResult.mimeType).toBe('audio/wav');

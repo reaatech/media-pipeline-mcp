@@ -26,7 +26,7 @@ export class MaxRetriesExceededError extends Error {
   constructor(
     message: string,
     public readonly cause?: Error,
-    public readonly attempts = 0
+    public readonly attempts = 0,
   ) {
     super(message);
     this.name = 'MaxRetriesExceededError';
@@ -88,13 +88,12 @@ export class RetryPolicy {
     throw new MaxRetriesExceededError(
       `Failed after ${this.config.maxAttempts} attempts`,
       lastError,
-      this.config.maxAttempts
+      this.config.maxAttempts,
     );
   }
 
   private calculateDelay(attempt: number): number {
-    const baseDelay =
-      this.config.initialDelayMs * Math.pow(this.config.backoffMultiplier, attempt - 1);
+    const baseDelay = this.config.initialDelayMs * this.config.backoffMultiplier ** (attempt - 1);
     let delay = baseDelay;
 
     if (this.config.jitter) {

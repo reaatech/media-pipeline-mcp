@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { MediaProvider } from './base-provider.js';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from './base-provider.js';
+import type { ProviderHealth, ProviderInput, ProviderOutput } from './base-provider.js';
 
 // Create a concrete implementation for testing
 class TestProvider extends MediaProvider {
@@ -94,7 +94,7 @@ describe('MediaProvider', () => {
           operation: 'test.operation',
           params: {},
           config: {},
-        })
+        }),
       ).rejects.toThrow('authentication');
 
       expect(attempts).toBe(1);

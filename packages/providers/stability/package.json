@@ -1,5 +1,5 @@
 {
-  "name": "@media-pipeline/stability",
+  "name": "@reaatech/media-pipeline-mcp-stability",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,12 +19,28 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@media-pipeline/provider-core": "workspace:*"
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "^5.4.5",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.4"
-  }
+  },
+  "description": "Stability AI provider — SD3/SDXL/SD1.5 image generation via Stable Image API",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/providers/stability"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/providers/stability#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist"]
 }

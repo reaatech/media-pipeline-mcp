@@ -44,7 +44,7 @@ media-pipeline-mcp is an MCP server that provides chainable media processing pip
 
 ## Package Structure
 
-### `@media-pipeline/core`
+### `@reaatech/media-pipeline-mcp`
 The core pipeline engine with:
 - **Types**: Zod-validated schemas for Pipeline, Step, Artifact, QualityGate
 - **PipelineExecutor**: Sequential step execution with artifact passing
@@ -53,13 +53,13 @@ The core pipeline engine with:
 - **PipelineValidator**: Validates pipeline definitions before execution
 - **MockProvider**: For testing without real API calls
 
-### `@media-pipeline/storage`
+### `@reaatech/media-pipeline-mcp-storage`
 Storage abstraction with adapters:
 - **LocalStorage**: Filesystem storage with TTL cleanup
 - **S3Storage**: AWS S3 with presigned URLs
 - **GCSStorage**: Google Cloud Storage with signed URLs
 
-### `@media-pipeline/server`
+### `@reaatech/media-pipeline-mcp-server`
 MCP server implementation:
 - **MCPServer**: Main server with tool handlers
 - **ProviderRegistry**: Provider registration and health checks

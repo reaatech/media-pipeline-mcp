@@ -1,4 +1,4 @@
-import type { Provider } from '@media-pipeline/core';
+import type { Provider } from '@reaatech/media-pipeline-mcp';
 import type { ProviderHealthStatus } from './provider-registry.js';
 
 export interface RoutingConfig {
@@ -33,7 +33,7 @@ export class ProviderRouter {
       if (!this.operationProviders.has(operation)) {
         this.operationProviders.set(operation, []);
       }
-      this.operationProviders.get(operation)!.push(provider);
+      this.operationProviders.get(operation)?.push(provider);
     }
 
     // Store health status if provided
@@ -172,7 +172,7 @@ export class ProviderRouter {
   async executeWithFallback<T>(
     operation: string,
     executor: (provider: Provider) => Promise<T>,
-    initialExclude?: string[]
+    initialExclude?: string[],
   ): Promise<{ result: T; provider: string; attempts: string[] }> {
     const attempts: string[] = [];
     const exclude = new Set(initialExclude || []);
@@ -185,7 +185,7 @@ export class ProviderRouter {
           throw new Error(`No provider available for operation: ${operation}`);
         }
         throw new Error(
-          `All providers failed for operation: ${operation}. Attempts: ${attempts.join(', ')}`
+          `All providers failed for operation: ${operation}. Attempts: ${attempts.join(', ')}`,
         );
       }
 
@@ -197,9 +197,6 @@ export class ProviderRouter {
       } catch (error) {
         console.warn(`Provider ${provider.name} failed for ${operation}:`, error);
         exclude.add(provider.name);
-
-        // Continue to next provider
-        continue;
       }
     }
   }

@@ -1,7 +1,7 @@
-import { TracerService } from './tracer-service.js';
+import { CostReporter } from './cost-reporter.js';
 import { MetricsService } from './metrics-service.js';
 import { StructuredLogger } from './structured-logger.js';
-import { CostReporter } from './cost-reporter.js';
+import { TracerService } from './tracer-service.js';
 
 export interface ObservabilityConfig {
   serviceName: string;

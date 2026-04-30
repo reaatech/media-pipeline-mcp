@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ServerConfig } from './config.js';
 import { MCPServer } from './mcp-server.js';
 import { toolRegistry } from './tool-registry.js';
-import type { ServerConfig } from './config.js';
 
 // Mock storage
-vi.mock('@media-pipeline/storage', () => ({
+vi.mock('@reaatech/media-pipeline-mcp-storage', () => ({
   createStorage: () => ({
     put: vi.fn().mockResolvedValue('uri'),
     get: vi.fn().mockResolvedValue({

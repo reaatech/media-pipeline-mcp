@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { PipelineExecutor } from './pipeline-executor.js';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { MockProvider } from './mock-provider.js';
+import { PipelineExecutor } from './pipeline-executor.js';
 import type { PipelineDefinition } from './types/index.js';
 
 describe('PipelineExecutor', () => {
@@ -201,7 +201,7 @@ describe('PipelineExecutor', () => {
 
     // Verify step2 received the artifact from step1
     const step1Artifact = Array.from(result.artifacts.values()).find(
-      (a) => a.sourceStep === 'step1'
+      (a) => a.sourceStep === 'step1',
     );
     expect(step1Artifact).toBeDefined();
   });

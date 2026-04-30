@@ -1,6 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { MediaProvider } from '@media-pipeline/provider-core';
-import type { ProviderInput, ProviderOutput, ProviderHealth } from '@media-pipeline/provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderHealth,
+  ProviderInput,
+  ProviderOutput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface AnthropicProviderConfig {
   apiKey: string;
@@ -361,7 +365,7 @@ export class AnthropicProvider extends MediaProvider {
 
   private estimateCost(
     _type: 'vision',
-    usage: { input_tokens: number; output_tokens: number }
+    usage: { input_tokens: number; output_tokens: number },
   ): number {
     // Claude Sonnet pricing: ~$3 per 1M input tokens, ~$15 per 1M output tokens
     // Images are counted as tokens based on resolution
