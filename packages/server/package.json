@@ -39,8 +39,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
-    "@vitest/coverage-v8": "4.1.4",
-    "vitest": "4.1.4"
+    "@vitest/coverage-v8": "4.1.5",
+    "vitest": "4.1.5"
   },
   "description": "MCP server exposing 30+ media operations via StreamableHTTP \u2014 provider routing, cost tracking, pipeline execution",
   "license": "MIT",
