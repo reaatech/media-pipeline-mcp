@@ -20,13 +20,13 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@fal-ai/client": "^1.9.5",
+    "@fal-ai/client": "^1.10.1",
     "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.7.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.6"
   },
   "description": "Fal.ai provider — Fast Flux Pro image generation, Real-ESRGAN upscaling, background removal, Kling video generation",
   "license": "MIT",

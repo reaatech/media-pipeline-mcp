@@ -24,7 +24,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
-    "@vitest/coverage-v8": "^4.1.4"
+    "@types/uuid": "^9.0.8",
+    "@vitest/coverage-v8": "^4.1.6"
   },
   "description": "Core framework for media pipeline orchestration \u2014 types, execution engine, validation, quality gates, artifact registry, and mock provider",
   "license": "MIT",

@@ -24,9 +24,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "@vitest/coverage-v8": "4.1.4",
+    "@vitest/coverage-v8": "4.1.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.6"
   },
   "description": "Abstract base class and shared interfaces for all media provider implementations",
   "license": "MIT",
