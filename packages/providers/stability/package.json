@@ -24,7 +24,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   },
   "description": "Stability AI provider — SD3/SDXL/SD1.5 image generation via Stable Image API",
