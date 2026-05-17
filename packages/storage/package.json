@@ -24,7 +24,7 @@
     "@google-cloud/storage": "^7.19.0",
     "@reaatech/media-pipeline-mcp": "workspace:*",
     "@smithy/protocol-http": "^5.3.14",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",

@@ -35,7 +35,7 @@
     "@reaatech/media-pipeline-mcp-replicate": "workspace:*",
     "@reaatech/media-pipeline-mcp-stability": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
