@@ -30,7 +30,7 @@
     "@types/node": "^20.11.0",
     "@types/sharp": "^0.32.0",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   },
   "description": "Image editing operations — resize, crop, composite (Sharp) with provider delegation for upscale, background removal, inpainting, description",
