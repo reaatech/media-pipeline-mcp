@@ -300,7 +300,7 @@ export class VideoGenOperations {
 
       const ffmpeg = spawn('ffmpeg', args);
 
-      ffmpeg.on('close', (code) => {
+      ffmpeg.on('close', (code: number | null) => {
         if (code === 0) {
           resolve();
         } else {
@@ -308,7 +308,7 @@ export class VideoGenOperations {
         }
       });
 
-      ffmpeg.on('error', (err) => {
+      ffmpeg.on('error', (err: Error) => {
         reject(err);
       });
     });
@@ -379,7 +379,7 @@ export class VideoGenOperations {
 
       const ffmpeg = spawn('ffmpeg', args);
 
-      ffmpeg.on('close', (code) => {
+      ffmpeg.on('close', (code: number | null) => {
         if (code === 0) {
           resolve();
         } else {
@@ -387,7 +387,7 @@ export class VideoGenOperations {
         }
       });
 
-      ffmpeg.on('error', (err) => {
+      ffmpeg.on('error', (err: Error) => {
         reject(err);
       });
     });
