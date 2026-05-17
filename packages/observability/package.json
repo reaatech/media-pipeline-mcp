@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.7.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
   "description": "Observability layer — OpenTelemetry tracing, Prometheus metrics, structured JSON logging, and cost reporting",
