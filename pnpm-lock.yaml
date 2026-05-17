@@ -243,8 +243,8 @@ importers:
         version: 9.0.1
     devDependencies:
       '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.39
+        specifier: ^25.7.0
+        version: 25.8.0
       '@types/uuid':
         specifier: ^9.0.0
         version: 9.0.8
@@ -256,7 +256,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.4
-        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(@vitest/coverage-v8@4.1.4)(vite@8.0.10(@types/node@20.19.39)(yaml@2.8.3))
+        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.4)(vite@8.0.10(@types/node@25.8.0)(yaml@2.8.3))
 
   packages/providers/anthropic:
     dependencies:
@@ -470,14 +470,14 @@ importers:
         specifier: ^9.0.10
         version: 9.0.10
       '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.39
+        specifier: ^25.7.0
+        version: 25.8.0
       '@vitest/coverage-v8':
         specifier: ^4.1.4
         version: 4.1.4(vitest@4.1.4)
       vitest:
         specifier: ^4.1.4
-        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(@vitest/coverage-v8@4.1.4)(vite@8.0.10(@types/node@20.19.39)(yaml@2.8.3))
+        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.4)(vite@8.0.10(@types/node@25.8.0)(yaml@2.8.3))
 
   packages/server:
     dependencies:
