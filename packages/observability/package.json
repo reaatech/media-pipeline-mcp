@@ -32,7 +32,7 @@
     "@reaatech/media-pipeline-mcp": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.7.0",
+    "@types/node": "^20.11.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.6"
   },
