@@ -214,9 +214,6 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.39
-      '@types/uuid':
-        specifier: ^9.0.0
-        version: 9.0.8
       '@vitest/coverage-v8':
         specifier: 4.1.4
         version: 4.1.4(vitest@4.1.4)
