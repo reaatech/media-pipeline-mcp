@@ -25,7 +25,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   },
   "description": "Abstract base class and shared interfaces for all media provider implementations",

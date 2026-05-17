@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.7.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   },
   "description": "Fal.ai provider — Fast Flux Pro image generation, Real-ESRGAN upscaling, background removal, Kling video generation",

@@ -29,7 +29,7 @@
     "@types/node": "^20.11.0",
     "@types/uuid": "^9.0.0",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   },
   "description": "Document extraction operations — OCR, table extraction, field extraction, summarization via vision-capable LLMs",
