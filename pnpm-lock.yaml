@@ -208,8 +208,8 @@ importers:
         specifier: workspace:*
         version: link:../../storage
       uuid:
-        specifier: ^9.0.0
-        version: 9.0.1
+        specifier: ^14.0.0
+        version: 14.0.0
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
