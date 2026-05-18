@@ -226,7 +226,7 @@ export class OpenAIProvider extends MediaProvider {
     const { audio_data, language } = input.params;
 
     const formData = new FormData();
-    const blob = new Blob([audio_data as Buffer], { type: 'audio/mpeg' });
+    const blob = new Blob([new Uint8Array(audio_data as Buffer)], { type: 'audio/mpeg' });
     formData.append('file', blob, 'audio.mp3');
     formData.append('model', 'whisper-1');
     if (language) {
