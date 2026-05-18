@@ -460,8 +460,8 @@ importers:
         specifier: ^9.0.3
         version: 9.0.3
       zod:
-        specifier: ^3.25.76
-        version: 3.25.76
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/bcryptjs':
         specifier: ^2.4.6
