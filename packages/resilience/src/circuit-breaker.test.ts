@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CircuitBreaker, CircuitBreakerError } from './circuit-breaker';
+import { CircuitBreaker, CircuitBreakerError } from './circuit-breaker.js';
 
 describe('CircuitBreaker', () => {
   it('should be instantiated with name', () => {

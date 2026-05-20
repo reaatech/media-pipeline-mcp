@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { LocalStorage } from './local-storage.ts';
+import { LocalStorage } from './local-storage.js';
 
 describe('LocalStorage', () => {
   let storage: LocalStorage;

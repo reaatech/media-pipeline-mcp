@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GCSStorage } from './gcs-storage.ts';
+import { GCSStorage } from './gcs-storage.js';
 
 const mockFile = {
   save: vi.fn().mockResolvedValue(undefined),

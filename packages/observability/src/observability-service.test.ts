@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type ObservabilityService, createObservabilityService } from './observability-service';
+import { type ObservabilityService, createObservabilityService } from './observability-service.js';
 
 describe('ObservabilityService', () => {
   let service: ObservabilityService;

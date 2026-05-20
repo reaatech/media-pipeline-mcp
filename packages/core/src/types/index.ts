@@ -10,7 +10,7 @@ export const ArtifactSchema = z.object({
   type: ArtifactTypeSchema,
   uri: z.string(),
   mimeType: z.string(),
-  metadata: z.record(z.string(), z.unknown()).default({}),
+  metadata: z.record(z.unknown()).default({}),
   sourceStep: z.string().optional(),
   createdAt: z.string().datetime().optional(),
 });
@@ -23,7 +23,7 @@ export type QualityGateAction = z.infer<typeof QualityGateActionSchema>;
 
 export const QualityGateSchema = z.object({
   type: z.enum(['llm-judge', 'threshold', 'dimension-check', 'custom']),
-  config: z.record(z.string(), z.unknown()),
+  config: z.record(z.unknown()),
   action: QualityGateActionSchema,
   maxRetries: z.number().int().min(0).optional(),
 });
@@ -34,8 +34,8 @@ export type QualityGate = z.infer<typeof QualityGateSchema>;
 export const PipelineStepSchema = z.object({
   id: z.string(),
   operation: z.string(),
-  inputs: z.record(z.string(), z.string()),
-  config: z.record(z.string(), z.unknown()).default({}),
+  inputs: z.record(z.string()),
+  config: z.record(z.unknown()).default({}),
   qualityGate: QualityGateSchema.optional(),
 });
 export type PipelineStep = z.infer<typeof PipelineStepSchema>;
@@ -67,8 +67,8 @@ export const PipelineDefinitionSchema = z.object({
     z.object({
       id: z.string(),
       operation: z.string(),
-      inputs: z.record(z.string(), z.string()),
-      config: z.record(z.string(), z.unknown()).default({}),
+      inputs: z.record(z.string()),
+      config: z.record(z.unknown()).default({}),
       qualityGate: QualityGateSchema.optional(),
     }),
   ),
@@ -79,8 +79,8 @@ export type PipelineDefinition = z.infer<typeof PipelineDefinitionSchema>;
 
 export const ProviderInputSchema = z.object({
   operation: z.string(),
-  inputs: z.record(z.string(), z.unknown()),
-  config: z.record(z.string(), z.unknown()).optional(),
+  inputs: z.record(z.unknown()),
+  config: z.record(z.unknown()).optional(),
 });
 export type ProviderInput = z.infer<typeof ProviderInputSchema>;
 
@@ -88,7 +88,7 @@ export const ProviderOutputSchema = z.object({
   artifact: ArtifactSchema,
   cost_usd: z.number().optional(),
   duration_ms: z.number().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 export type ProviderOutput = z.infer<typeof ProviderOutputSchema>;
 
@@ -123,7 +123,7 @@ export const PipelineEventSchema = z.object({
   stepId: z.string().optional(),
   artifactId: z.string().optional(),
   timestamp: z.string().datetime(),
-  data: z.record(z.string(), z.unknown()).optional(),
+  data: z.record(z.unknown()).optional(),
 });
 export type PipelineEvent = z.infer<typeof PipelineEventSchema>;
 
@@ -155,7 +155,7 @@ export const ArtifactMetaSchema = z.object({
   type: ArtifactTypeSchema,
   mimeType: z.string(),
   size: z.number().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.unknown()).optional(),
   createdAt: z.string().datetime().optional(),
   sourceStep: z.string().optional(),
 });

@@ -63,35 +63,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
         run: |
-          find_dir() {
-            local name="$1"
-            local suffix="${name#@reaatech/media-pipeline-mcp}"
-
-            if [ -z "$suffix" ]; then
-              echo "packages/core"
-              return
-            fi
-            suffix="${suffix#-}"
-
-            case "$suffix" in
-              storage|server|security|resilience|observability)
-                echo "packages/$suffix" ;;
-              doc-extraction)
-                echo "packages/operations/doc-extraction" ;;
-              pipeline|image-edit|video-gen|audio-gen)
-                echo "packages/operations/$suffix" ;;
-              *)
-                echo "packages/providers/$suffix" ;;
-            esac
-          }
-
           cat > .npmrc <<'NPMRC'
-@reaatech:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-NPMRC
-
+          @reaatech:registry=https://npm.pkg.github.com
+          //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+          NPMRC
           echo "$PUBLISHED_PACKAGES" | jq -r '.[].name' | while read -r name; do
-            dir="$(find_dir "$name")"
+            dir="packages/${name#@reaatech/media-pipeline-mcp-}"
             echo "Mirroring $name -> $dir"
             (cd "$dir" && npm publish --registry=https://npm.pkg.github.com)
           done

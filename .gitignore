@@ -66,3 +66,6 @@ sbom.json
 # Docker
 docker-compose.override.yml
 !*.DS_Store
+
+# Turborepo
+.turbo/

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AuthMiddleware } from './auth-middleware';
+import { AuthMiddleware } from './auth-middleware.js';
 
 describe('AuthMiddleware', () => {
   it('should be instantiated with config', () => {

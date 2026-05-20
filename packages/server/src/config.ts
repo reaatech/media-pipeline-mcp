@@ -71,7 +71,7 @@ export const ServerConfigSchema = z.object({
       z.object({
         name: z.string(),
         operations: z.array(z.string()),
-        config: z.record(z.string(), z.unknown()).optional(),
+        config: z.record(z.unknown()).optional(),
       }),
     )
     .default([]),

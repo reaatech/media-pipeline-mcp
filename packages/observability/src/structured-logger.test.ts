@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StructuredLogger } from './structured-logger';
+import { StructuredLogger } from './structured-logger.js';
 
 describe('StructuredLogger', () => {
   let logger: StructuredLogger;

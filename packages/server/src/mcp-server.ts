@@ -2,13 +2,13 @@ import http from 'node:http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import type { Artifact, Pipeline, PipelineDefinition } from '@reaatech/media-pipeline-mcp';
+import type { Artifact, Pipeline, PipelineDefinition } from '@reaatech/media-pipeline-mcp-core';
 import {
   type PipelineEvent,
   PipelineExecutor,
   PipelineValidator,
   createQualityGateEvaluator,
-} from '@reaatech/media-pipeline-mcp';
+} from '@reaatech/media-pipeline-mcp-core';
 import { AuthMiddleware, RateLimiter } from '@reaatech/media-pipeline-mcp-security';
 import type { AuthContext } from '@reaatech/media-pipeline-mcp-security';
 import type { ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';

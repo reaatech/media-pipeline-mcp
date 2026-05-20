@@ -1,4 +1,4 @@
-import type { CostRecord, CostSummary } from '@reaatech/media-pipeline-mcp';
+import type { CostRecord, CostSummary } from '@reaatech/media-pipeline-mcp-core';
 
 export interface BudgetConfig {
   dailyLimit?: number;

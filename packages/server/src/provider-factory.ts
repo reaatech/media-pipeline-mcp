@@ -1,6 +1,6 @@
-import type { Provider } from '@reaatech/media-pipeline-mcp';
-import { MockProvider } from '@reaatech/media-pipeline-mcp';
 import { AnthropicProvider } from '@reaatech/media-pipeline-mcp-anthropic';
+import type { Provider } from '@reaatech/media-pipeline-mcp-core';
+import { MockProvider } from '@reaatech/media-pipeline-mcp-core';
 import { DeepgramProvider } from '@reaatech/media-pipeline-mcp-deepgram';
 import { ElevenLabsProvider } from '@reaatech/media-pipeline-mcp-elevenlabs';
 import { FalProvider } from '@reaatech/media-pipeline-mcp-fal';

@@ -1,4 +1,4 @@
-import type { Provider } from '@reaatech/media-pipeline-mcp';
+import type { Provider } from '@reaatech/media-pipeline-mcp-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProviderHealthStatus } from './provider-registry.js';
 import { type ProviderRouter, createProviderRouter } from './provider-router.js';

@@ -1,4 +1,4 @@
-import type { ArtifactType } from '@reaatech/media-pipeline-mcp';
+import type { ArtifactType } from '@reaatech/media-pipeline-mcp-core';
 
 export interface ArtifactMeta {
   id: string;

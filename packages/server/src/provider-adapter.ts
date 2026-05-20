@@ -1,4 +1,4 @@
-import type { Artifact, Provider } from '@reaatech/media-pipeline-mcp';
+import type { Artifact, Provider } from '@reaatech/media-pipeline-mcp-core';
 
 export class ProviderAdapter implements Provider {
   readonly name: string;
