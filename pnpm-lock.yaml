@@ -102,14 +102,14 @@ importers:
         version: link:../core
     devDependencies:
       '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.39
+        specifier: ^25.7.0
+        version: 25.8.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(@vitest/coverage-v8@4.1.6)(vite@8.0.10(@types/node@20.19.39)(yaml@2.8.3))
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(vite@8.0.10(@types/node@25.8.0)(yaml@2.8.3))
 
   packages/operations/audio-gen:
     dependencies:
@@ -6540,7 +6540,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@20.19.39)(@vitest/coverage-v8@4.1.6)(vite@8.0.10(@types/node@20.19.39)(yaml@2.8.3))
+      vitest: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(vite@8.0.10(@types/node@25.8.0)(yaml@2.8.3))
 
   '@vitest/expect@4.1.4':
     dependencies:
