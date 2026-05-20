@@ -26,7 +26,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.6"
   },
   "description": "Replicate provider — Real-ESRGAN upscaling, BRIA RMBG background removal, Stable Inpainting, Demucs audio isolation, Kling video generation",
   "license": "MIT",

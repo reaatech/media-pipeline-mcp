@@ -26,7 +26,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.6"
   },
   "description": "ElevenLabs provider — high-quality text-to-speech with voice selection, speed control, and voice tuning",
   "license": "MIT",

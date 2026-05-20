@@ -23,9 +23,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "@vitest/coverage-v8": "4.1.4",
+    "@vitest/coverage-v8": "4.1.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.6"
   },
   "description": "OpenAI provider — DALL-E 3 image generation, GPT-4o Vision description, TTS-1 text-to-speech, Whisper-1 speech-to-text",
   "license": "MIT",

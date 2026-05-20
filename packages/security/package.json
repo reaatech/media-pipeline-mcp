@@ -29,8 +29,8 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.7.0",
-    "@vitest/coverage-v8": "^4.1.4",
-    "vitest": "^4.1.4"
+    "@vitest/coverage-v8": "^4.1.6",
+    "vitest": "^4.1.6"
   },
   "description": "Enterprise security features \u2014 API key and JWT authentication, RBAC, token bucket rate limiting, audit logging with SIEM export",
   "license": "MIT",
