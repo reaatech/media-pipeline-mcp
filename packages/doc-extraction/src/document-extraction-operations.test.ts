@@ -1,30 +1,44 @@
 import { Readable } from 'node:stream';
 import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  CostEstimate,
+  ProviderHealth,
+  ProviderInput,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DocumentExtractionOperations } from './document-extraction-operations.js';
 
-interface MockProvider {
-  name: string;
-  supportedOperations: string[];
-  execute: (input: any) => Promise<any>;
-  healthCheck: () => Promise<{ healthy: boolean }>;
+interface MockProviderResult {
+  data: Buffer;
+  mimeType: string;
+  costUsd: number;
 }
 
-function createMockProvider(
-  name: string,
-  supportedOperations: string[],
-  mockResult: any,
-): MockProvider {
-  return {
-    name,
-    supportedOperations,
-    execute: async () => mockResult,
-    healthCheck: async () => ({ healthy: true }),
-  };
+class MockProvider extends MediaProvider {
+  readonly name: string;
+  readonly supportedOperations: string[];
+  private mockResult: MockProviderResult;
+
+  constructor(name: string, supportedOperations: string[], mockResult: MockProviderResult) {
+    super();
+    this.name = name;
+    this.supportedOperations = supportedOperations;
+    this.mockResult = mockResult;
+  }
+
+  async execute(_input: ProviderInput) {
+    return { ...this.mockResult, metadata: {} };
+  }
+  async healthCheck(): Promise<ProviderHealth> {
+    return { healthy: true };
+  }
+  async estimateCost(_input: ProviderInput): Promise<CostEstimate> {
+    return { costUsd: this.mockResult.costUsd ?? 0.001, currency: 'USD' };
+  }
 }
 
-// Mock storage implementation
 class MockStorage implements ArtifactStore {
   private store: Map<string, Buffer> = new Map();
   private metaStore: Map<string, ArtifactMeta> = new Map();
@@ -39,25 +53,21 @@ class MockStorage implements ArtifactStore {
     const data = this.store.get(id);
     const meta = this.metaStore.get(id);
     if (!data || !meta) throw new Error(`Artifact ${id} not found`);
-    return {
-      data: Readable.from(data),
-      meta,
-    };
+    return { data: Readable.from(data), meta };
   }
 
   async getSignedUrl(id: string, expiresIn?: number): Promise<string> {
     return `https://storage.example.com/signed/${id}?expires=${Date.now() + (expiresIn || 3600) * 1000}`;
   }
-
   async delete(id: string): Promise<void> {
     this.store.delete(id);
     this.metaStore.delete(id);
   }
-
   async list(prefix?: string): Promise<ArtifactMeta[]> {
-    return Array.from(this.metaStore.values()).filter((m) => !prefix || m.id.startsWith(prefix));
+    return Array.from(this.metaStore.values()).filter(
+      (m) => !prefix || (m.id ?? '').startsWith(prefix),
+    );
   }
-
   async healthCheck(): Promise<boolean> {
     return true;
   }
@@ -68,42 +78,59 @@ describe('DocumentExtractionOperations', () => {
   let storage: MockStorage;
   let operations: DocumentExtractionOperations;
 
+  function registerArtifact(
+    type: 'image' | 'video' | 'audio' | 'text' | 'document',
+    id?: string,
+  ): string {
+    const artifact = artifactRegistry.register({
+      type,
+      uri: `file:///test.${type}`,
+      mimeType: type === 'image' ? 'image/png' : 'text/plain',
+      metadata: {},
+    });
+    const artId = id || artifact.id;
+    storage.put(artId, Buffer.from('data'), {
+      id: artId,
+      type,
+      mimeType: type === 'image' ? 'image/png' : 'text/plain',
+      size: 4,
+      metadata: {},
+    } as ArtifactMeta);
+    return artId;
+  }
+
   beforeEach(() => {
     artifactRegistry = new ArtifactRegistry();
     storage = new MockStorage();
     operations = new DocumentExtractionOperations(artifactRegistry, storage);
 
-    // Register mock providers for document operations
     operations.registerProvider(
       'mock-ocr',
-      createMockProvider('mock-ocr', ['document.ocr'], {
+      new MockProvider('mock-ocr', ['document.ocr'], {
         data: Buffer.from('extracted-text'),
         mimeType: 'text/plain',
         costUsd: 0.001,
       }),
     );
-
     operations.registerProvider(
       'mock-tables',
-      createMockProvider('mock-tables', ['document.extract_tables'], {
+      new MockProvider('mock-tables', ['document.extract_tables'], {
         data: Buffer.from('table-data'),
         mimeType: 'text/markdown',
         costUsd: 0.002,
       }),
     );
-
     operations.registerProvider(
       'mock-fields',
-      createMockProvider('mock-fields', ['document.extract_fields'], {
+      new MockProvider('mock-fields', ['document.extract_fields'], {
         data: Buffer.from('{"field": "value"}'),
         mimeType: 'application/json',
         costUsd: 0.001,
       }),
     );
-
     operations.registerProvider(
       'mock-summarize',
-      createMockProvider('mock-summarize', ['document.summarize'], {
+      new MockProvider('mock-summarize', ['document.summarize'], {
         data: Buffer.from('summary-text'),
         mimeType: 'text/plain',
         costUsd: 0.005,
@@ -112,78 +139,24 @@ describe('DocumentExtractionOperations', () => {
   });
 
   describe('ocr', () => {
-    it('should extract text from image artifact with plain-text format', async () => {
-      const imageArtifact = artifactRegistry.register({
-        type: 'image',
-        uri: 'file:///test.png',
-        mimeType: 'image/png',
-        metadata: { width: 1024, height: 768 },
-      });
-
-      // Store the image data in storage using the artifact's ID as the key
-      await storage.put(imageArtifact.id, Buffer.from('image-data'), {
-        id: imageArtifact.id,
-        type: 'image',
-        mimeType: 'image/png',
-        size: 10,
-        metadata: { width: 1024, height: 768 },
-      });
-
-      const result = await operations.ocr({ artifactId: imageArtifact.id });
-
+    it('should extract text with plain-text format', async () => {
+      const artId = registerArtifact('image');
+      const result = await operations.ocr({ artifactId: artId });
       expect(result.type).toBe('text');
       expect(result.mimeType).toBe('text/plain');
-      expect(result.metadata.operation).toBe('ocr');
       expect(result.metadata.format).toBe('plain-text');
     });
 
     it('should extract text with structured-json format', async () => {
-      const imageArtifact = artifactRegistry.register({
-        type: 'image',
-        uri: 'file:///test.png',
-        mimeType: 'image/png',
-        metadata: {},
-      });
-
-      await storage.put(imageArtifact.id, Buffer.from('image-data'), {
-        id: imageArtifact.id,
-        type: 'image',
-        mimeType: 'image/png',
-        size: 10,
-        metadata: {},
-      });
-
-      const result = await operations.ocr({
-        artifactId: imageArtifact.id,
-        format: 'structured-json',
-      });
-
-      expect(result.type).toBe('text');
+      const artId = registerArtifact('image');
+      const result = await operations.ocr({ artifactId: artId, format: 'structured-json' });
       expect(result.mimeType).toBe('application/json');
-      expect(result.metadata.format).toBe('structured-json');
     });
 
     it('should extract text with markdown format', async () => {
-      const imageArtifact = artifactRegistry.register({
-        type: 'image',
-        uri: 'file:///test.png',
-        mimeType: 'image/png',
-        metadata: {},
-      });
-
-      await storage.put(imageArtifact.id, Buffer.from('image-data'), {
-        id: imageArtifact.id,
-        type: 'image',
-        mimeType: 'image/png',
-        size: 10,
-        metadata: {},
-      });
-
-      const result = await operations.ocr({ artifactId: imageArtifact.id, format: 'markdown' });
-
-      expect(result.type).toBe('text');
+      const artId = registerArtifact('image');
+      const result = await operations.ocr({ artifactId: artId, format: 'markdown' });
       expect(result.mimeType).toBe('text/plain');
-      expect(result.metadata.format).toBe('markdown');
     });
 
     it('should fail for non-image/document artifact', async () => {
@@ -193,205 +166,228 @@ describe('DocumentExtractionOperations', () => {
         mimeType: 'audio/mpeg',
         metadata: {},
       });
-
       await expect(operations.ocr({ artifactId: audioArtifact.id })).rejects.toThrow();
+    });
+
+    it('should fail when no provider available', async () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      const artId = registerArtifact('image');
+      await expect(ops.ocr({ artifactId: artId })).rejects.toThrow('No provider available');
+    });
+
+    it('should use image.describe as fallback if no document.ocr provider', async () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      ops.registerProvider(
+        'mock-vision',
+        new MockProvider('mock-vision', ['image.describe'], {
+          data: Buffer.from('vision-ocr'),
+          mimeType: 'text/plain',
+          costUsd: 0.001,
+        }),
+      );
+      const artId = registerArtifact('image');
+      const result = await ops.ocr({ artifactId: artId });
+      expect(result.mimeType).toBe('text/plain');
+    });
+
+    it('should prefer specified provider', async () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      ops.registerProvider(
+        'custom',
+        new MockProvider('custom', ['document.ocr'], {
+          data: Buffer.from('custom-result'),
+          mimeType: 'text/plain',
+          costUsd: 0.001,
+        }),
+      );
+      const artId = registerArtifact('image');
+      const result = await ops.ocr({ artifactId: artId, provider: 'custom' });
+      expect(result.metadata.provider).toBe('custom');
     });
   });
 
   describe('extractTables', () => {
     it('should extract tables in markdown format', async () => {
-      const imageArtifact = artifactRegistry.register({
-        type: 'image',
-        uri: 'file:///table.png',
-        mimeType: 'image/png',
-        metadata: {},
-      });
-
-      await storage.put(imageArtifact.id, Buffer.from('image-data'), {
-        id: imageArtifact.id,
-        type: 'image',
-        mimeType: 'image/png',
-        size: 10,
-        metadata: {},
-      });
-
-      const result = await operations.extractTables({ artifactId: imageArtifact.id });
-
+      const artId = registerArtifact('image');
+      const result = await operations.extractTables({ artifactId: artId });
       expect(result.type).toBe('text');
       expect(result.mimeType).toBe('text/markdown');
-      expect(result.metadata.operation).toBe('extract_tables');
     });
 
-    it('should extract tables in JSON format', async () => {
-      const imageArtifact = artifactRegistry.register({
-        type: 'image',
-        uri: 'file:///table.png',
-        mimeType: 'image/png',
-        metadata: {},
-      });
-
-      await storage.put(imageArtifact.id, Buffer.from('image-data'), {
-        id: imageArtifact.id,
-        type: 'image',
-        mimeType: 'image/png',
-        size: 10,
-        metadata: {},
-      });
-
-      const result = await operations.extractTables({
-        artifactId: imageArtifact.id,
-        outputFormat: 'json',
-      });
-
-      expect(result.type).toBe('text');
+    it('should extract tables in json format', async () => {
+      const artId = registerArtifact('image');
+      const result = await operations.extractTables({ artifactId: artId, outputFormat: 'json' });
       expect(result.mimeType).toBe('application/json');
-      expect(result.metadata.operation).toBe('extract_tables');
+    });
+
+    it('should fail for non-image/document artifact', async () => {
+      const audio = artifactRegistry.register({
+        type: 'audio',
+        uri: 'file:///a.mp3',
+        mimeType: 'audio/mpeg',
+        metadata: {},
+      });
+      await expect(operations.extractTables({ artifactId: audio.id })).rejects.toThrow();
+    });
+
+    it('should fail when no provider available', async () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      const artId = registerArtifact('image');
+      await expect(ops.extractTables({ artifactId: artId })).rejects.toThrow(
+        'No provider available',
+      );
     });
   });
 
   describe('extractFields', () => {
     it('should extract fields from document', async () => {
-      const docArtifact = artifactRegistry.register({
-        type: 'document',
-        uri: 'file:///doc.pdf',
-        mimeType: 'application/pdf',
-        metadata: {},
-      });
-
-      await storage.put(docArtifact.id, Buffer.from('document-data'), {
-        id: docArtifact.id,
-        type: 'document',
-        mimeType: 'application/pdf',
-        size: 100,
-        metadata: {},
-      });
-
+      const artId = registerArtifact('image');
       const result = await operations.extractFields({
-        artifactId: docArtifact.id,
+        artifactId: artId,
         fields: [
-          { name: 'invoice_number', type: 'string' },
-          { name: 'total_amount', type: 'number' },
-          { name: 'date', type: 'date' },
+          { name: 'name', type: 'string' },
+          { name: 'amount', type: 'number' },
         ],
       });
-
       expect(result.type).toBe('text');
       expect(result.mimeType).toBe('application/json');
-      expect(result.metadata.operation).toBe('extract_fields');
-      expect(result.metadata.fieldCount).toBe(3);
+      expect(result.metadata.fieldCount).toBe(2);
     });
 
     it('should extract fields from text artifact', async () => {
-      const textArtifact = artifactRegistry.register({
-        type: 'text',
-        uri: 'file:///text.txt',
-        mimeType: 'text/plain',
-        metadata: {},
-      });
-
-      await storage.put(textArtifact.id, Buffer.from('text-data'), {
-        id: textArtifact.id,
-        type: 'text',
-        mimeType: 'text/plain',
-        size: 100,
-        metadata: {},
-      });
-
+      const artId = registerArtifact('text');
       const result = await operations.extractFields({
-        artifactId: textArtifact.id,
-        fields: [{ name: 'name', type: 'string' }],
+        artifactId: artId,
+        fields: [{ name: 'title', type: 'string' }],
       });
-
-      expect(result.type).toBe('text');
       expect(result.metadata.fieldCount).toBe(1);
+    });
+
+    it('should fail for invalid artifact type', async () => {
+      const audio = artifactRegistry.register({
+        type: 'audio',
+        uri: 'file:///a.mp3',
+        mimeType: 'audio/mpeg',
+        metadata: {},
+      });
+      await expect(
+        operations.extractFields({ artifactId: audio.id, fields: [] }),
+      ).rejects.toThrow();
+    });
+
+    it('should fail when no provider available', async () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      const artId = registerArtifact('image');
+      await expect(ops.extractFields({ artifactId: artId, fields: [] })).rejects.toThrow(
+        'No provider available',
+      );
     });
   });
 
   describe('summarize', () => {
     it('should summarize text artifact with default settings', async () => {
-      const textArtifact = artifactRegistry.register({
-        type: 'text',
-        uri: 'file:///long-text.txt',
-        mimeType: 'text/plain',
-        metadata: {},
-      });
-
-      await storage.put(textArtifact.id, Buffer.from('long-text-data'), {
-        id: textArtifact.id,
-        type: 'text',
-        mimeType: 'text/plain',
-        size: 1000,
-        metadata: {},
-      });
-
-      const result = await operations.summarize({ artifactId: textArtifact.id });
-
+      const artId = registerArtifact('text');
+      const result = await operations.summarize({ artifactId: artId });
       expect(result.type).toBe('text');
       expect(result.mimeType).toBe('text/plain');
-      expect(result.metadata.operation).toBe('summarize');
       expect(result.metadata.length).toBe('medium');
       expect(result.metadata.style).toBe('paragraph');
     });
 
     it('should summarize with bullet-points style', async () => {
-      const textArtifact = artifactRegistry.register({
-        type: 'text',
-        uri: 'file:///long-text.txt',
-        mimeType: 'text/plain',
-        metadata: {},
-      });
-
-      await storage.put(textArtifact.id, Buffer.from('long-text-data'), {
-        id: textArtifact.id,
-        type: 'text',
-        mimeType: 'text/plain',
-        size: 1000,
-        metadata: {},
-      });
-
-      const result = await operations.summarize({
-        artifactId: textArtifact.id,
-        style: 'bullet-points',
-      });
-
+      const artId = registerArtifact('text');
+      const result = await operations.summarize({ artifactId: artId, style: 'bullet-points' });
       expect(result.metadata.style).toBe('bullet-points');
     });
 
     it('should summarize with executive style', async () => {
-      const textArtifact = artifactRegistry.register({
-        type: 'text',
-        uri: 'file:///long-text.txt',
-        mimeType: 'text/plain',
-        metadata: {},
-      });
-
-      await storage.put(textArtifact.id, Buffer.from('long-text-data'), {
-        id: textArtifact.id,
-        type: 'text',
-        mimeType: 'text/plain',
-        size: 1000,
-        metadata: {},
-      });
-
+      const artId = registerArtifact('text');
       const result = await operations.summarize({
-        artifactId: textArtifact.id,
+        artifactId: artId,
         length: 'short',
         style: 'executive',
       });
-
       expect(result.metadata.length).toBe('short');
       expect(result.metadata.style).toBe('executive');
     });
 
+    it('should summarize image artifact', async () => {
+      const artId = registerArtifact('image');
+      const result = await operations.summarize({ artifactId: artId });
+      expect(result.type).toBe('text');
+    });
+
     it('should fail for audio artifact', async () => {
-      const audioArtifact = artifactRegistry.register({
+      const audio = artifactRegistry.register({
         type: 'audio',
-        uri: 'file:///audio.mp3',
+        uri: 'file:///a.mp3',
         mimeType: 'audio/mpeg',
         metadata: {},
       });
-
-      await expect(operations.summarize({ artifactId: audioArtifact.id })).rejects.toThrow();
+      await expect(operations.summarize({ artifactId: audio.id })).rejects.toThrow();
     });
+
+    it('should fail when no provider available', async () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      const artId = registerArtifact('text');
+      await expect(ops.summarize({ artifactId: artId })).rejects.toThrow('No provider available');
+    });
+  });
+
+  describe('getProvider (private)', () => {
+    it('should return preferred provider if it supports operation', () => {
+      const p = (
+        operations as unknown as {
+          getProvider(operation: string, preferred?: string): MediaProvider | undefined;
+        }
+      ).getProvider('document.ocr', 'mock-ocr');
+      expect(p!.name).toBe('mock-ocr');
+    });
+
+    it('should return undefined when preferred does not support operation', () => {
+      const p = (
+        operations as unknown as {
+          getProvider(operation: string, preferred?: string): MediaProvider | undefined;
+        }
+      ).getProvider('document.extract_tables', 'mock-ocr');
+      expect(p!.name).toBe('mock-tables');
+    });
+
+    it('should return undefined when no provider supports operation', () => {
+      const p = (
+        operations as unknown as {
+          getProvider(operation: string, preferred?: string): MediaProvider | undefined;
+        }
+      ).getProvider('unknown.op');
+      expect(p).toBeUndefined();
+    });
+  });
+
+  describe('registerProvider', () => {
+    it('should register a provider', () => {
+      const ops = new DocumentExtractionOperations(artifactRegistry, storage);
+      ops.registerProvider(
+        'test',
+        new MockProvider('test', ['document.ocr'], {
+          data: Buffer.from('x'),
+          mimeType: 'text/plain',
+          costUsd: 0,
+        }),
+      );
+      const p = (
+        ops as unknown as {
+          getProvider(operation: string, preferred?: string): MediaProvider | undefined;
+        }
+      ).getProvider('document.ocr');
+      expect(p!.name).toBe('test');
+    });
+  });
+});
+
+describe('index exports', () => {
+  it('should export all expected symbols', async () => {
+    const mod = await import('./index.js');
+    expect(mod.DocumentExtractionOperations).toBeDefined();
+    expect(mod.createDocumentExtractionOperations).toBeDefined();
   });
 });

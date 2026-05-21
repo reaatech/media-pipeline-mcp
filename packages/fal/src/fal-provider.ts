@@ -1,10 +1,14 @@
 import { fal } from '@fal-ai/client';
 import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
+  CostEstimate,
+  PricingTable,
+  ProviderCacheConfig,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import pricing from './pricing.json' with { type: 'json' };
 
 export interface FalProviderConfig {
   apiKey: string;
@@ -20,6 +24,53 @@ export interface FalProviderConfig {
 }
 
 export class FalProvider extends MediaProvider {
+  // F2: per-plan table — `prompt, model, all input params, seed` are deterministic.
+  // `request_id` is non-deterministic. Fal also accepts a `webhook_url` (F7) which
+  // must not contribute to the cache key.
+  static cacheConfig: ProviderCacheConfig = {
+    deterministicParams: [
+      'prompt',
+      'negative_prompt',
+      'model',
+      'seed',
+      'image_url',
+      'image_size',
+      'num_inference_steps',
+      'guidance_scale',
+      'duration',
+      'aspect_ratio',
+    ],
+    nonDeterministicParams: ['request_id', 'webhook_url', 'sync_mode'],
+    normalize: (inputs: Record<string, unknown>): Record<string, unknown> => {
+      const normalized: Record<string, unknown> = {};
+      if (inputs.prompt !== undefined)
+        normalized.prompt = String(inputs.prompt).trim().replace(/\s+/g, ' ');
+      if (inputs.negative_prompt !== undefined)
+        normalized.negative_prompt = String(inputs.negative_prompt).trim().replace(/\s+/g, ' ');
+      if (inputs.model !== undefined) normalized.model = inputs.model;
+      if (inputs.seed !== undefined) normalized.seed = inputs.seed;
+      if (inputs.image_url !== undefined) normalized.image_url = inputs.image_url;
+      if (inputs.image_size !== undefined) normalized.image_size = inputs.image_size;
+      if (inputs.num_inference_steps !== undefined)
+        normalized.num_inference_steps = inputs.num_inference_steps;
+      if (inputs.guidance_scale !== undefined) normalized.guidance_scale = inputs.guidance_scale;
+      if (inputs.duration !== undefined) normalized.duration = inputs.duration;
+      if (inputs.aspect_ratio !== undefined) normalized.aspect_ratio = inputs.aspect_ratio;
+      return normalized;
+    },
+  };
+
+  // §0.6 — fal queue events stream via its SDK (subscribed in execute paths
+  // when a step-progress consumer is attached). Fal also natively supports
+  // HMAC-signed webhooks.
+  readonly supportsStreaming = new Set([
+    'image.generate',
+    'image.upscale',
+    'video.generate',
+    'video.image_to_video',
+  ]);
+  readonly supportsWebhooks = true;
+
   readonly name = 'fal';
   readonly supportedOperations = [
     'image.generate',
@@ -76,6 +127,20 @@ export class FalProvider extends MediaProvider {
         error: (error as Error).message,
       };
     }
+  }
+
+  async estimateCost(input: ProviderInput): Promise<CostEstimate> {
+    const opPricing = (pricing as PricingTable)[input.operation];
+    if (!opPricing) {
+      return { costUsd: 0, currency: 'USD' };
+    }
+    const modelKey = Object.keys(opPricing)[0];
+    const entry = opPricing[modelKey];
+    return {
+      costUsd: entry?.input.perUnit ?? 0.01,
+      currency: 'USD',
+      estimatedDurationMs: entry?.expectedDurationMs,
+    };
   }
 
   async execute(input: ProviderInput): Promise<ProviderOutput> {
@@ -167,7 +232,7 @@ export class FalProvider extends MediaProvider {
         mimeType = 'application/json';
       }
 
-      const cost = this.estimateCost(input.operation);
+      const cost = await this.lookupCost(input.operation);
 
       return {
         data,
@@ -204,15 +269,9 @@ export class FalProvider extends MediaProvider {
     return ratios[aspectRatio] || defaults;
   }
 
-  private estimateCost(operation: string): number {
-    const costs: Record<string, number> = {
-      'image.generate': 0.008,
-      'image.upscale': 0.004,
-      'image.remove_background': 0.002,
-      'video.generate': 0.12,
-      'video.image_to_video': 0.1,
-    };
-    return costs[operation] || 0.01;
+  private async lookupCost(operation: string): Promise<number> {
+    const estimate = await this.estimateCost({ operation, params: {}, config: {} });
+    return estimate.costUsd;
   }
 
   protected isNonRetryableError(error: Error): boolean {

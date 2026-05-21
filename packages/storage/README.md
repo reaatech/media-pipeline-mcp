@@ -6,7 +6,7 @@
 
 > **Status:** Pre-1.0 — APIs may change in minor versions. Pin to a specific version in production.
 
-Storage abstraction layer for persisting and retrieving media artifacts across multiple backends — local filesystem, AWS S3, and Google Cloud Storage — behind a unified interface.
+Storage abstraction layer for persisting and retrieving media artifacts across multiple backends — local filesystem, AWS S3, and Google Cloud Storage — behind a unified `ArtifactStore` interface. Includes a factory function, tenant-scoped access control, path-traversal protection, and MIME-to-extension mapping.
 
 ## Installation
 
@@ -18,12 +18,14 @@ pnpm add @reaatech/media-pipeline-mcp-storage
 
 ## Feature Overview
 
-- **Unified interface** — single `ArtifactStore` contract with `put()`, `get()`, `getSignedUrl()`, `delete()`, `list()`, `healthCheck()`
-- **Local filesystem** — TTL auto-cleanup with hourly sweep, path-traversal protection, metadata sidecar files
-- **AWS S3** — lazy-initialized client, presigned URL generation, optional custom endpoint (MinIO)
-- **Google Cloud Storage** — lazy-initialized client, signed URLs, metadata persistence in object metadata
-- **Path-traversal protection** — rejects artifact IDs containing `..`, `/`, or `\`
-- **Factory function** — `createStorage(config)` selects backend from typed config
+- **Unified `ArtifactStore` interface** — `put`, `get`, `getSignedUrl`, `delete`, `list`, `healthCheck` for all backends
+- **Local filesystem backend** — TTL auto-cleanup with hourly sweep, path-traversal protection, MIME-to-extension mapping, metadata sidecar files (`.meta.json`), optional HTTP serving
+- **AWS S3 backend** — lazy-initialized SDK client, presigned URL generation, custom endpoint support (MinIO, LocalStack), credential passthrough, metadata in object headers
+- **Google Cloud Storage backend** — lazy-initialized client, signed URLs, custom metadata persistence, bucket existence check on `healthCheck`
+- **`createStorage` factory** — type-safe discriminated union selects backend from config
+- **Path-traversal protection** — rejects artifact IDs containing `..`, `/`, `\` across all backends
+- **Tenant-scoped store** — wraps any `ArtifactStore` with tenant ID prefix enforcement for multi-tenant deployments
+- **Stream-to-buffer conversion** — automatic chunked conversion for backends requiring buffers
 
 ## Quick Start
 
@@ -33,34 +35,50 @@ import { createStorage } from "@reaatech/media-pipeline-mcp-storage";
 // Local filesystem
 const local = createStorage({
   type: "local",
-  basePath: "./artifacts",
-  ttl: "24h",
-  serveHttp: true,
-  httpPort: 3001,
+  config: {
+    basePath: "./artifacts",
+    ttl: 86400000,          // 24h in ms
+    serveHttp: true,
+    httpPort: 3001,
+  },
 });
 
-// AWS S3
+// S3
 const s3 = createStorage({
   type: "s3",
-  bucket: "my-media-artifacts",
-  region: "us-east-1",
-  prefix: "pipelines/",
+  config: {
+    bucket: "my-media-artifacts",
+    region: "us-east-1",
+    prefix: "pipelines/",
+  },
 });
 
-// Google Cloud Storage
+// GCS
 const gcs = createStorage({
   type: "gcs",
-  bucket: "my-media-artifacts",
-  prefix: "pipelines/",
+  config: {
+    bucket: "my-media-artifacts",
+    prefix: "pipelines/",
+  },
 });
 
-const result = await local.put("artifact-123", buffer, {
+// Store an artifact
+const uri = await local.put("artifact-123", buffer, {
+  id: "artifact-123",
+  type: "image",
   mimeType: "image/png",
-  width: 1024,
-  height: 1024,
+  metadata: { width: 1024, height: 1024 },
 });
+console.log(uri); // "file:///absolute/path/to/artifacts/artifact-123.png"
 
-console.log(result.uri); // "file://./artifacts/artifact-123.png"
+// Retrieve an artifact
+const retrieved = await local.get("artifact-123");
+console.log(retrieved.meta.mimeType); // "image/png"
+// retrieved.data is a ReadableStream
+
+// Generate a signed URL
+const signedUrl = await s3.getSignedUrl("artifact-123", 3600);
+// Direct client access for one hour
 ```
 
 ## API Reference
@@ -69,76 +87,141 @@ console.log(result.uri); // "file://./artifacts/artifact-123.png"
 
 ```typescript
 interface ArtifactStore {
-  put(id: string, data: Buffer, metadata: ArtifactMeta): Promise<StorageResult>;
-  get(id: string): Promise<{ data: Buffer; metadata: ArtifactMeta }>;
-  getSignedUrl(id: string, expiresInSeconds?: number): Promise<string>;
+  put(id: string, data: Buffer | NodeJS.ReadableStream | unknown, meta: ArtifactMeta): Promise<string>;
+  get(id: string): Promise<StorageResult>;
+  getSignedUrl(id: string, expiresIn?: number): Promise<string>;
   delete(id: string): Promise<void>;
-  list(prefix?: string, limit?: number): Promise<{ ids: string[]; nextToken?: string }>;
+  list(prefix?: string): Promise<ArtifactMeta[]>;
   healthCheck(): Promise<boolean>;
 }
 ```
 
-### `createStorage(config: StorageConfig): ArtifactStore`
+### `createStorage(config)`
 
-Factory that returns the appropriate storage implementation based on config type.
+Type-safe factory function.
 
-#### `StorageConfig` (discriminated union)
+```typescript
+function createStorage(config: StorageConfig): ArtifactStore;
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `type` | `"local" \| "s3" \| "gcs"` | Backend discriminator |
-| `basePath` | `string` | Local filesystem path (local only) |
-| `ttl` | `string` | Auto-cleanup TTL e.g. `"24h"` (local only) |
-| `serveHttp` | `boolean` | Serve artifacts via HTTP (local only) |
-| `httpPort` | `number` | HTTP server port (local only) |
-| `bucket` | `string` | Bucket name (s3/gcs) |
-| `region` | `string` | AWS region (s3 only) |
-| `prefix` | `string` | Key prefix (s3/gcs) |
-| `endpoint` | `string` | Custom S3 endpoint (s3 only) |
+type StorageConfig =
+  | { type: "local"; config: LocalStorageConfig }
+  | { type: "s3";   config: S3StorageConfig }
+  | { type: "gcs";  config: GCSStorageConfig };
+```
 
 ### `LocalStorage`
+
+Filesystem-based artifact storage with TTL cleanup and optional HTTP serving.
 
 ```typescript
 class LocalStorage implements ArtifactStore {
   constructor(config: LocalStorageConfig);
-  // Full ArtifactStore implementation
-  // Hourly TTL sweep for expired artifacts
-  // MIME-to-extension mapping for file naming
-  // Metadata stored as artifact-123.png.meta.json sidecar
+  destroy(): void;
 }
 ```
 
+#### `LocalStorageConfig`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `basePath` | `string` | **required** | Directory for artifact storage |
+| `ttl` | `number` | — | Auto-cleanup TTL in milliseconds |
+| `serveHttp` | `boolean` | `false` | Enable HTTP artifact serving |
+| `httpPort` | `number` | — | HTTP server port |
+| `httpHost` | `string` | — | HTTP server host |
+
+Behaviors:
+- **Automatic directory creation** — base path created with `mkdir -p` on construction
+- **Hourly TTL sweep** — `setInterval` every 3600s cleans files older than TTL
+- **Metadata sidecar** — each artifact file gets a `.meta.json` companion
+- **MIME-to-extension mapping** — `.png`, `.jpg`, `.webp`, `.gif`, `.mp3`, `.wav`, `.ogg`, `.mp4`, `.webm`, `.txt`, `.json`, `.pdf`, fallback `.bin`
+- **Stream support** — pipe `ReadableStream` into file via `createWriteStream`
+
 ### `S3Storage`
+
+AWS S3 artifact storage with optional custom endpoint support.
 
 ```typescript
 class S3Storage implements ArtifactStore {
   constructor(config: S3StorageConfig);
-  // Lazy-initialized S3 client
-  // Presigned URL generation via @aws-sdk/s3-request-presigner
-  // Streaming to buffer conversion for get()
 }
 ```
 
+#### `S3StorageConfig`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `bucket` | `string` | **required** | S3 bucket name |
+| `region` | `string` | **required** | AWS region |
+| `prefix` | `string` | `""` | Key prefix for all objects |
+| `accessKeyId` | `string` | — | AWS access key (or use env/IMDS) |
+| `secretAccessKey` | `string` | — | AWS secret key (or use env/IMDS) |
+| `endpoint` | `string` | — | Custom S3 endpoint (MinIO: `http://localhost:9000`) |
+
+Behaviors:
+- **Lazy initialization** — S3 client created on first operation
+- **Presigned URLs** — generated via `@aws-sdk/s3-request-presigner` with configurable expiry
+- **Metadata in headers** — artifact type, MIME type, source step, custom metadata stored as S3 object metadata
+- **Custom endpoint** — sets `forcePathStyle: true` for S3-compatible services
+- **Health check** — sends `HeadBucketCommand` to verify bucket accessibility
+
 ### `GCSStorage`
+
+Google Cloud Storage artifact storage.
 
 ```typescript
 class GCSStorage implements ArtifactStore {
   constructor(config: GCSStorageConfig);
-  // Lazy-initialized GCS client via @google-cloud/storage
-  // Signed URL generation with configurable expiry
-  // Metadata persisted in GCS object custom metadata
 }
 ```
+
+#### `GCSStorageConfig`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `bucket` | `string` | **required** | GCS bucket name |
+| `prefix` | `string` | `""` | Object name prefix |
+| `projectId` | `string` | — | GCP project ID (or use env) |
+| `keyFilename` | `string` | — | Service account JSON key path |
+
+Behaviors:
+- **Lazy initialization** — GCS client created on first operation
+- **Signed URLs** — generated via `file.getSignedUrl()` with configurable expiry
+- **Metadata in GCS metadata** — artifact type, mime type, source step, custom metadata in object custom metadata
+- **Health check** — verifies bucket exists and is accessible
+- **CreateReadStream** — `get()` returns a readable stream for efficient transfer
 
 ### `ArtifactMeta`
 
 ```typescript
 interface ArtifactMeta {
+  id?: string;
+  type: ArtifactType;      // "image" | "video" | "audio" | "text" | "document"
   mimeType: string;
-  width?: number;
-  height?: number;
-  fileSize?: number;
-  [key: string]: unknown;
+  size?: number;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+  sourceStep?: string;
+}
+```
+
+### `StorageResult`
+
+```typescript
+interface StorageResult {
+  data: Buffer | NodeJS.ReadableStream | unknown;
+  meta: ArtifactMeta;
+}
+```
+
+### `TenantScopedArtifactStore`
+
+Wraps any `ArtifactStore` to enforce tenant-based ID prefixing. Every artifact ID is automatically prefixed with `tenant/<tenantId>/` for multi-tenant isolation.
+
+```typescript
+class TenantScopedArtifactStore implements ArtifactStore {
+  constructor(private store: ArtifactStore, private tenantId: string);
+  // All ArtifactStore methods proxied with tenantId prefix
 }
 ```
 
@@ -149,13 +232,21 @@ interface ArtifactMeta {
 ```typescript
 const storage = createStorage({
   type: "local",
-  basePath: "./artifacts",
-  serveHttp: true,
-  httpPort: 3001,
-  ttl: "48h",
+  config: {
+    basePath: "./artifacts",
+    serveHttp: true,
+    httpPort: 3001,
+    ttl: 172800000, // 48h
+  },
 });
 
-// Artifact served at http://localhost:3001/artifacts/artifact-123.png
+const uri = await storage.put("photo-001", buffer, {
+  id: "photo-001",
+  type: "image",
+  mimeType: "image/png",
+  metadata: { width: 1024, height: 1024 },
+});
+// Artifact served at http://localhost:3001/artifacts/photo-001.png
 ```
 
 ### S3 with MinIO (Development)
@@ -163,24 +254,63 @@ const storage = createStorage({
 ```typescript
 const storage = createStorage({
   type: "s3",
-  bucket: "media-artifacts",
-  region: "us-east-1",
-  prefix: "dev/",
-  endpoint: "http://localhost:9000",
+  config: {
+    bucket: "media-artifacts",
+    region: "us-east-1",
+    prefix: "dev/",
+    endpoint: "http://localhost:9000",
+    accessKeyId: "minioadmin",
+    secretAccessKey: "minioadmin",
+  },
 });
 ```
 
-### Signed URLs for Direct Access
+### Signed URLs for Direct Client Access
 
 ```typescript
 const signedUrl = await storage.getSignedUrl("artifact-123", 3600);
-// Direct client access without going through the server
+// S3:  public presigned URL, expires in 1 hour
+// GCS: public signed URL, expires in 1 hour
+// Local: file:// URI with expires query param
+
+// Download directly from the client
+const response = await fetch(signedUrl);
+const blob = await response.blob();
+```
+
+### Tenant-Scoped Access
+
+```typescript
+import { TenantScopedArtifactStore } from "@reaatech/media-pipeline-mcp-storage";
+
+const baseStore = createStorage({ type: "s3", config: { bucket: "artifacts", region: "us-east-1" } });
+const tenantStore = new TenantScopedArtifactStore(baseStore, "tenant-abc");
+
+// All IDs prefixed with "tenant-abc/"
+await tenantStore.put("photo-001", buffer, { id: "photo-001", type: "image", mimeType: "image/png" });
+// Stored as s3://artifacts/tenant-abc/photo-001
+```
+
+### Health Check Monitoring
+
+```typescript
+const backends = [
+  createStorage({ type: "local", config: { basePath: "./artifacts" } }),
+  createStorage({ type: "s3", config: { bucket: "prod-artifacts", region: "us-east-1" } }),
+];
+
+for (const backend of backends) {
+  const healthy = await backend.healthCheck();
+  if (!healthy) {
+    console.error(`Backend health check failed`);
+  }
+}
 ```
 
 ## Related Packages
 
-- [`@reaatech/media-pipeline-mcp`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp) — Core pipeline types used by storage
-- [`@reaatech/media-pipeline-mcp-server`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-server) — MCP server that consumes storage
+- [`@reaatech/media-pipeline-mcp-core`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-core) — Core pipeline types (ArtifactType consumed by storage)
+- [`@reaatech/media-pipeline-mcp-provider-core`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-provider-core) — Provider base class uses `setStorage` / `storeArtifact`
 
 ## License
 

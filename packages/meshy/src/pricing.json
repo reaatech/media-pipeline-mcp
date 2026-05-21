@@ -1,0 +1,11 @@
+{
+  "mesh.generate": {
+    "meshy-4": {
+      "preview": {
+        "input": { "perUnit": 0.2, "unit": "1 generation" },
+        "expectedDurationMs": 30000
+      },
+      "refine": { "input": { "perUnit": 0.4, "unit": "1 generation" }, "expectedDurationMs": 90000 }
+    }
+  }
+}

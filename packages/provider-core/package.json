@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-provider-core",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Abstract base class and shared interfaces for all media provider implementations",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

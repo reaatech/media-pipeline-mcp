@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-audio-gen",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Audio generation operations — TTS, STT, diarization, source separation, music generation, sound effects (provider delegation)",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
@@ -40,11 +40,21 @@
     "@reaatech/media-pipeline-mcp-storage": "workspace:*",
     "uuid": "^9.0.0"
   },
+  "peerDependencies": {
+    "ws": "^8.0.0",
+    "@google-cloud/speech": "^6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ws": { "optional": true },
+    "@google-cloud/speech": { "optional": true }
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/uuid": "^9.0.0",
+    "@types/ws": "^8.5.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.1",
+    "ws": "^8.0.0"
   }
 }

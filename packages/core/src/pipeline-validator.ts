@@ -162,8 +162,94 @@ export class PipelineValidator {
           warnings.push(`Step '${step.id}' has dimension-check gate without expected dimensions`);
         }
       }
+
+      // Validate additional gates array
+      const stepExt = step as { gates?: Array<{ action?: string; maxRetries?: number }> };
+      if (stepExt.gates && Array.isArray(stepExt.gates)) {
+        for (let gi = 0; gi < stepExt.gates.length; gi++) {
+          const gate = stepExt.gates[gi];
+          if (gate.action === 'retry' && gate.maxRetries === undefined) {
+            warnings.push(
+              `Step '${step.id}' gate[${gi}] has retry action but no maxRetries specified`,
+            );
+          }
+        }
+      }
     }
 
+    // Validate pipeline-level configs
+    this.validateBudgetConfig(definition, warnings);
+    this.validateVariantsConfig(definition, warnings);
+    this.validateRunContext(definition, warnings);
+
     return warnings;
+  }
+
+  private validateBudgetConfig(definition: PipelineDefinition, warnings: string[]): void {
+    const budget = (definition as { budget?: { maxUsd?: number; onExceed?: string } }).budget;
+    if (budget) {
+      if (budget.maxUsd !== undefined && budget.maxUsd <= 0) {
+        warnings.push('Budget maxUsd must be greater than 0');
+      }
+      if (budget.onExceed && !['abort', 'suspend'].includes(budget.onExceed)) {
+        warnings.push(`Budget onExceed must be 'abort' or 'suspend', got '${budget.onExceed}'`);
+      }
+    }
+  }
+
+  private validateVariantsConfig(definition: PipelineDefinition, warnings: string[]): void {
+    for (const step of definition.steps) {
+      const variants = (
+        step as { variants?: { n?: number; seedStrategy?: string; judge?: { type?: string } } }
+      ).variants;
+      if (variants) {
+        if (variants.n !== undefined && (variants.n < 2 || variants.n > 16)) {
+          warnings.push(`Step '${step.id}' variants.n must be between 2 and 16, got ${variants.n}`);
+        }
+        if (
+          variants.seedStrategy !== undefined &&
+          !['random', 'sequential', 'fixed-list'].includes(variants.seedStrategy)
+        ) {
+          warnings.push(
+            `Step '${step.id}' variants.seedStrategy must be one of random, sequential, fixed-list`,
+          );
+        }
+        if (!variants.judge) {
+          warnings.push(`Step '${step.id}' has variants without a judge configuration`);
+        }
+      }
+    }
+  }
+
+  private validateRunContext(definition: PipelineDefinition, warnings: string[]): void {
+    const context = (
+      definition as {
+        context?: {
+          voices?: Record<string, unknown>;
+          styles?: Record<string, unknown>;
+          vars?: Record<string, unknown>;
+        };
+      }
+    ).context;
+    if (context) {
+      if (context.voices) {
+        for (const [name, ref] of Object.entries(context.voices)) {
+          const voiceRef = ref as { provider?: string };
+          if (
+            voiceRef.provider &&
+            !['elevenlabs', 'openai', 'google', 'deepgram-tts'].includes(voiceRef.provider)
+          ) {
+            warnings.push(`Context voice '${name}' has unknown provider '${voiceRef.provider}'`);
+          }
+        }
+      }
+      if (context.styles) {
+        for (const [name] of Object.entries(context.styles)) {
+          if (name.includes('..') || name.includes('/')) {
+            warnings.push(`Context style name '${name}' contains invalid characters`);
+          }
+        }
+      }
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "media-pipeline-mcp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Chainable media operations with quality gates as MCP tools",
   "type": "module",

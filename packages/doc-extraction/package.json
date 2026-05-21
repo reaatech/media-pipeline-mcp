@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-doc-extraction",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Document extraction operations — OCR, table extraction, field extraction, summarization via vision-capable LLMs",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

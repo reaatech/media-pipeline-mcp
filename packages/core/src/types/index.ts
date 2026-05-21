@@ -1,5 +1,68 @@
 import { z } from 'zod';
 
+// ─── INTERNAL types used by the in-tree PipelineExecutor ─────────────────────
+//
+// IMPORTANT: these are NOT the canonical types for cross-package wiring.
+//   - For pipeline run state, import `PipelineStateStore`, `PipelineRun`, `StepState`,
+//     `PipelineEvent` from `@reaatech/media-pipeline-mcp-persistence`.
+//   - For cost tracking, import `CostLedger`, `CostEntry`, `CostEstimate` from
+//     `@reaatech/media-pipeline-mcp-cost`.
+//   - For routing, import `RouteConfig`, `RouteCandidate`, `Router` from
+//     `@reaatech/media-pipeline-mcp-provider-core`.
+//
+// The narrowed shapes below are what the executor consumes internally (and what its
+// injection-callback wiring passes through). Server-side adapters bridge the canonical
+// types to these internal shapes.
+
+/** @internal Executor-local store shape. The canonical type lives in @reaatech/media-pipeline-mcp-persistence. */
+export interface PipelineStateStore {
+  createRun(run: PipelineRunRecord): Promise<string>;
+  getRun(runId: string): Promise<PipelineRunRecord | undefined>;
+  updateRun(runId: string, patch: Partial<PipelineRunRecord>): Promise<void>;
+  acquireLock(runId: string, ttlMs?: number): Promise<boolean>;
+  releaseLock(runId: string): Promise<void>;
+  listRuns(filter?: { pipelineId?: string; status?: PipelineStatus }): Promise<PipelineRunRecord[]>;
+}
+
+/** @internal Executor-local record. The canonical PipelineRun lives in @reaatech/media-pipeline-mcp-persistence. */
+export interface PipelineRunRecord {
+  runId: string;
+  pipelineId: string;
+  status: PipelineStatus;
+  definition: PipelineDefinition;
+  stepStates: StepStateRecord[];
+  artifacts: Record<string, string>;
+  totalCostUsd: number;
+  startedAt: string;
+  completedAt?: string;
+  error?: string;
+  resumable?: boolean;
+}
+
+/** @internal Executor-local record. The canonical StepState lives in @reaatech/media-pipeline-mcp-persistence. */
+export interface StepStateRecord {
+  stepId: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'gated' | 'skipped' | 'cached';
+  artifactId?: string;
+  attempts: number;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+}
+
+/** @internal Executor-local ledger shape. The canonical CostLedger lives in @reaatech/media-pipeline-mcp-cost. */
+export interface CostLedger {
+  charge(params: {
+    runId: string;
+    stepId: string;
+    operation: string;
+    provider: string;
+    costUsd: number;
+  }): Promise<void>;
+  getRunCost(runId: string): Promise<number>;
+  getTotalCost(): Promise<number>;
+}
+
 // ─── Artifact Types ─────────────────────────────────────────────────────────
 
 export const ArtifactTypeSchema = z.enum(['image', 'video', 'audio', 'text', 'document']);
@@ -29,6 +92,126 @@ export const QualityGateSchema = z.object({
 });
 export type QualityGate = z.infer<typeof QualityGateSchema>;
 
+// ─── F4 Budget Schema ──────────────────────────────────────────────────────
+
+export const BudgetConfigSchema = z.object({
+  maxUsd: z.number().nonnegative(),
+  onExceed: z.enum(['abort', 'suspend']),
+  warnAtPct: z.number().min(0).max(1).optional(),
+});
+export type BudgetConfig = z.infer<typeof BudgetConfigSchema>;
+
+// ─── F2 Cache Schema ───────────────────────────────────────────────────────
+
+export const CacheConfigSchema = z.object({
+  mode: z.enum(['use', 'refresh', 'skip']).optional(),
+  ttlSeconds: z.number().int().positive().optional(),
+  scope: z.enum(['global', 'tenant']).optional(),
+});
+export type CacheConfig = z.infer<typeof CacheConfigSchema>;
+
+// ─── F8 Route Schema ───────────────────────────────────────────────────────
+
+export const RouteCandidateSchema = z.object({
+  provider: z.string(),
+  model: z.string(),
+  maxQueueMs: z.number().int().positive().optional(),
+  maxUsd: z.number().nonnegative().optional(),
+  inputOverrides: z.record(z.unknown()).optional(),
+  weight: z.number().nonnegative().optional(),
+});
+
+export const RouteConfigSchema = z.object({
+  strategy: z.enum(['first-success', 'cheapest-acceptable', 'fastest']),
+  candidates: z.array(RouteCandidateSchema).min(1),
+  timeoutMs: z.number().int().positive().optional(),
+  healthTtlMs: z.number().int().positive().optional(),
+});
+export type RouteConfig = z.infer<typeof RouteConfigSchema>;
+
+// ─── F9 Variants Schema ────────────────────────────────────────────────────
+
+export const JudgeRubricSchema = z.object({
+  dimensions: z.array(
+    z.object({
+      name: z.string(),
+      weight: z.number().min(0).max(1),
+      description: z.string(),
+    }),
+  ),
+});
+export type JudgeRubric = z.infer<typeof JudgeRubricSchema>;
+
+export const JudgeConfigSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('llm-judge'),
+    criteria: z.string(),
+    model: z.string().optional(),
+    provider: z.string().optional(),
+    rubric: JudgeRubricSchema.optional(),
+  }),
+  z.object({
+    type: z.literal('image-judge'),
+    criteria: z.enum(['clip-score', 'aesthetic']),
+    reference: z.string().optional(),
+  }),
+  z.object({ type: z.literal('rule'), expression: z.string() }),
+  z.object({ type: z.literal('custom'), toolName: z.string() }),
+]);
+export type JudgeConfig = z.infer<typeof JudgeConfigSchema>;
+
+export const VariantsConfigSchema = z.object({
+  n: z.number().int().min(2).max(16),
+  seedStrategy: z.enum(['random', 'sequential', 'fixed-list']).optional(),
+  seeds: z.array(z.number().int()).optional(),
+  judge: JudgeConfigSchema,
+  loserAction: z.enum(['archive', 'discard']).optional(),
+  perVariantCandidate: z.boolean().optional(),
+  minScore: z.number().min(0).max(1).optional(),
+});
+export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
+
+// ─── F13 RunContext Schema ─────────────────────────────────────────────────
+
+export const VoiceRefSchema = z.object({
+  provider: z.enum(['elevenlabs', 'openai', 'google', 'deepgram-tts']),
+  voiceId: z.string(),
+  settings: z.record(z.unknown()).optional(),
+});
+export type VoiceRef = z.infer<typeof VoiceRefSchema>;
+
+export const StyleRefSchema = z.object({
+  description: z.string(),
+  negative: z.string().optional(),
+  perProvider: z
+    .record(z.object({ description: z.string().optional(), negative: z.string().optional() }))
+    .optional(),
+});
+export type StyleRef = z.infer<typeof StyleRefSchema>;
+
+export const BrandKitSchema = z.object({
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  fontFamily: z.string().optional(),
+  logoArtifactId: z.string().optional(),
+  extras: z.record(z.unknown()).optional(),
+});
+export type BrandKit = z.infer<typeof BrandKitSchema>;
+
+export const ContextRefSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('voice'), name: z.string() }),
+  z.object({ kind: z.literal('style'), name: z.string() }),
+  z.object({ kind: z.literal('brand'), key: z.string() }),
+]);
+
+export const RunContextSchema = z.object({
+  voices: z.record(VoiceRefSchema).optional(),
+  styles: z.record(StyleRefSchema).optional(),
+  brandKit: BrandKitSchema.optional(),
+  vars: z.record(z.unknown()).optional(),
+});
+export type RunContext = z.infer<typeof RunContextSchema>;
+
 // ─── Pipeline Step Types ────────────────────────────────────────────────────
 
 export const PipelineStepSchema = z.object({
@@ -37,12 +220,23 @@ export const PipelineStepSchema = z.object({
   inputs: z.record(z.string()),
   config: z.record(z.unknown()).default({}),
   qualityGate: QualityGateSchema.optional(),
+  variants: VariantsConfigSchema.optional(),
+  gates: z.array(QualityGateSchema).optional(),
+  cache: CacheConfigSchema.optional(),
+  route: RouteConfigSchema.optional(),
 });
 export type PipelineStep = z.infer<typeof PipelineStepSchema>;
 
 // ─── Pipeline Types ─────────────────────────────────────────────────────────
 
-export const PipelineStatusSchema = z.enum(['pending', 'running', 'completed', 'failed', 'gated']);
+export const PipelineStatusSchema = z.enum([
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'gated',
+  'cancelled',
+]);
 export type PipelineStatus = z.infer<typeof PipelineStatusSchema>;
 
 export const PipelineSchema = z.object({
@@ -70,8 +264,15 @@ export const PipelineDefinitionSchema = z.object({
       inputs: z.record(z.string()),
       config: z.record(z.unknown()).default({}),
       qualityGate: QualityGateSchema.optional(),
+      variants: VariantsConfigSchema.optional(),
+      gates: z.array(QualityGateSchema).optional(),
+      cache: CacheConfigSchema.optional(),
+      route: RouteConfigSchema.optional(),
     }),
   ),
+  resumable: z.boolean().default(true).optional(),
+  budget: BudgetConfigSchema.optional(),
+  context: RunContextSchema.optional(),
 });
 export type PipelineDefinition = z.infer<typeof PipelineDefinitionSchema>;
 
@@ -104,7 +305,12 @@ export type QualityGateResult = z.infer<typeof QualityGateResultSchema>;
 
 // ─── Pipeline Execution Events ──────────────────────────────────────────────
 
+// Both the legacy colon-namespaced names (still emitted by the in-tree PipelineExecutor)
+// and the spec-canonical kebab-case names (plan §0.1, emitted by the persistence layer)
+// are accepted. Consumers should treat them as synonyms — see StreamingBridge for the
+// mapping table.
 export const PipelineEventTypeSchema = z.enum([
+  // Legacy
   'pipeline:start',
   'pipeline:complete',
   'pipeline:failed',
@@ -114,6 +320,19 @@ export const PipelineEventTypeSchema = z.enum([
   'step:failed',
   'step:gated',
   'step:retry',
+  // Spec-canonical (§0.1)
+  'run-created',
+  'run-started',
+  'run-completed',
+  'run-failed',
+  'run-suspended',
+  'run-resumed',
+  'step-started',
+  'step-progress',
+  'step-completed',
+  'step-failed',
+  'step-cached',
+  'step-gated',
 ]);
 export type PipelineEventType = z.infer<typeof PipelineEventTypeSchema>;
 
@@ -177,3 +396,66 @@ export const ValidationResultSchema = z.object({
   estimated_duration_ms: z.number().optional(),
 });
 export type ValidationResult = z.infer<typeof ValidationResultSchema>;
+
+// ─── F3 Resume Types ────────────────────────────────────────────────────────
+
+export interface PipelineResumeRequest {
+  runId: string;
+  fromStepId?: string;
+}
+
+// ─── F5 Estimation Types ────────────────────────────────────────────────────
+
+export interface PipelineEstimate {
+  totalUsdLow: number;
+  totalUsdHigh: number;
+  perStep: StepEstimate[];
+  warnings: EstimateWarning[];
+}
+
+export interface StepEstimate {
+  stepId: string;
+  operation: string;
+  provider: string;
+  modelId: string;
+  usdLow: number;
+  usdHigh: number;
+  estimable: boolean;
+  fallbackUsed?: 'cached-stats' | 'default-bound';
+}
+
+export interface EstimateWarning {
+  stepId: string;
+  code: 'no-estimator' | 'variable-output' | 'depends-on-prior-step' | 'router-spread';
+  message: string;
+}
+
+// ─── F9 Variant Output Types ────────────────────────────────────────────────
+
+export interface VariantResult {
+  variantIndex: number;
+  artifactId?: string;
+  costUsd: number;
+  judgeScore?: number;
+  judgeRationale?: string;
+  winner: boolean;
+  rejected?: 'safety' | 'judge-low' | 'gate-fail' | 'generation-error';
+  generationError?: { code: string; message: string };
+}
+
+export interface VariantsStepOutput {
+  winner?: VariantResult;
+  losers: VariantResult[];
+  totalCostUsd: number;
+  judgeUsdCost: number;
+}
+
+// ─── F13 Context Ref Types ──────────────────────────────────────────────────
+
+export type ContextRef =
+  | { kind: 'voice'; name: string }
+  | { kind: 'style'; name: string }
+  | { kind: 'brand'; key: string };
+
+// Error classes are defined in ./errors.js — import from there:
+// RunNotResumableError, RunInProgressError, BudgetExceededError, etc.

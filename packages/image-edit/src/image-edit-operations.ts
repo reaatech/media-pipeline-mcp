@@ -100,8 +100,8 @@ export class ImageEditOperations {
     const image = sharp(buffer);
     const metadata = await image.metadata();
 
-    let targetWidth = config.width || metadata.width!;
-    let targetHeight = config.height || metadata.height!;
+    let targetWidth = config.width || metadata.width || 0;
+    let targetHeight = config.height || metadata.height || 0;
 
     // If only one dimension provided, calculate the other maintaining aspect ratio
     if (!config.width && config.height && metadata.width && metadata.height) {
@@ -117,7 +117,7 @@ export class ImageEditOperations {
     };
 
     if (config.position) {
-      resizeOptions.position = config.position as any;
+      resizeOptions.position = config.position as sharp.ResizeOptions['position'];
     }
 
     const resized = image.resize(targetWidth, targetHeight, resizeOptions);
@@ -249,7 +249,8 @@ export class ImageEditOperations {
     };
 
     if (config.opacity !== undefined) {
-      (compositeOptions as any).opacity = config.opacity;
+      // sharp v0.x OverlayOptions doesn't declare opacity but the underlying libvips supports it
+      (compositeOptions as sharp.OverlayOptions & { opacity?: number }).opacity = config.opacity;
     }
 
     if (config.top !== undefined) {

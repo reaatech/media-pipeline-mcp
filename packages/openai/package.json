@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-openai",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "OpenAI provider — DALL-E 3 image generation, GPT-4o Vision description, TTS-1 text-to-speech, Whisper-1 speech-to-text",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

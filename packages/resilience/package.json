@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-resilience",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "High availability patterns — circuit breaker and retry with exponential backoff for media pipeline provider calls",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

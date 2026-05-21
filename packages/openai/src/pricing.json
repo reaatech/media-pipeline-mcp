@@ -1,0 +1,40 @@
+{
+  "image.generate": {
+    "dall-e-3": {
+      "input": { "perUnit": 0.04 },
+      "expectedDurationMs": 5000
+    },
+    "dall-e-3-hd": {
+      "input": { "perUnit": 0.08 },
+      "expectedDurationMs": 6000
+    }
+  },
+  "image.describe": {
+    "gpt-4o": {
+      "input": { "perUnit": 0.0025, "unit": "1K tokens" },
+      "output": { "perUnit": 0.01, "unit": "1K tokens" },
+      "expectedDurationMs": 2000
+    },
+    "gpt-4o-mini": {
+      "input": { "perUnit": 0.00015, "unit": "1K tokens" },
+      "output": { "perUnit": 0.0006, "unit": "1K tokens" },
+      "expectedDurationMs": 1500
+    }
+  },
+  "audio.tts": {
+    "tts-1": {
+      "input": { "perUnit": 15.0, "unit": "1M characters" },
+      "expectedDurationMs": 3000
+    },
+    "tts-1-hd": {
+      "input": { "perUnit": 30.0, "unit": "1M characters" },
+      "expectedDurationMs": 4000
+    }
+  },
+  "audio.stt": {
+    "whisper-1": {
+      "input": { "perUnit": 0.006, "unit": "per minute" },
+      "expectedDurationMs": 5000
+    }
+  }
+}

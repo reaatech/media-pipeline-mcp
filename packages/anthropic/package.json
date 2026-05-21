@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-anthropic",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Anthropic provider — Claude Sonnet for image description, OCR, table extraction, field extraction, and summarization",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

@@ -6,7 +6,7 @@
 
 > **Status:** Pre-1.0 — APIs may change in minor versions. Pin to a specific version in production.
 
-High availability and resilience patterns for media pipeline operations. Provides circuit breaker and retry with exponential backoff — essential for protecting downstream providers from cascading failures.
+High availability and resilience patterns for media pipeline operations. Provides a three-state circuit breaker for protecting downstream providers from cascading failures, and a retry policy with exponential backoff and jitter for transient error recovery.
 
 ## Installation
 
@@ -18,11 +18,14 @@ pnpm add @reaatech/media-pipeline-mcp-resilience
 
 ## Feature Overview
 
-- **Circuit breaker** — three-state machine protecting external providers from overload
-- **Retry with backoff** — exponential delay with jitter, max delay cap, and retryable error detection
-- **Typed errors** — `CircuitBreakerError` and `MaxRetriesExceededError` with cause chaining
-- **Stats reporting** — state, failures, successes, and transition timestamps for monitoring
-- **Manual control** — force-open, reset, and half-open concurrency protection
+- **Circuit breaker** — three-state machine (closed, open, half-open) with configurable failure/success thresholds, monitoring window, and half-open concurrency protection
+- **Retry with exponential backoff** — configurable initial delay, backoff multiplier, max delay cap, and jitter for staggered recovery
+- **Retryable error detection** — filter by error `name`, `code`, or message pattern (defaults: `ECONNRESET`, `ETIMEDOUT`, `ECONNREFUSED`, `TimeoutError`)
+- **Typed error classes** — `CircuitBreakerError` with `retryAfter` ms and `MaxRetriesExceededError` with attempt count and cause chaining
+- **Stats reporting** — live `CircuitBreakerStats` with state, failure/success counts, timestamps
+- **Retry listeners** — subscribe to retry events for logging and observability
+- **Manual control** — `reset()`, `forceOpen()` for operational overrides
+- **Factory functions** — `createCircuitBreaker(name, config)` and `createRetryPolicy(config)` for concise construction
 
 ## Quick Start
 
@@ -33,10 +36,10 @@ import {
 } from "@reaatech/media-pipeline-mcp-resilience";
 
 // Circuit breaker protecting an external API
-const breaker = createCircuitBreaker({
+const breaker = createCircuitBreaker("stability-api", {
   failureThreshold: 5,
-  openTimeoutMs: 30000,
-  successThreshold: 2,
+  successThreshold: 3,
+  timeout: 30000,
 });
 
 const result = await breaker.execute(async () => {
@@ -47,14 +50,18 @@ const result = await breaker.execute(async () => {
 
 // Retry with exponential backoff
 const retry = createRetryPolicy({
-  maxRetries: 3,
-  baseDelayMs: 1000,
+  maxAttempts: 3,
+  initialDelayMs: 1000,
   maxDelayMs: 30000,
+  backoffMultiplier: 2,
   jitter: true,
 });
 
-const data = await retry.execute(async () => {
-  return await callUnreliableService();
+// Combine circuit breaker + retry for robust calls
+const data = await breaker.execute(async () => {
+  return retry.execute(async () => {
+    return await callUnreliableService();
+  });
 });
 ```
 
@@ -62,12 +69,15 @@ const data = await retry.execute(async () => {
 
 ### `CircuitBreaker`
 
+Three-state circuit breaker protecting external dependencies from cascading failures.
+
 ```typescript
 class CircuitBreaker {
-  constructor(config: CircuitBreakerConfig);
+  constructor(name: string, config?: Partial<CircuitBreakerConfig>);
+
   execute<T>(fn: () => Promise<T>): Promise<T>;
-  reset(): void;
-  forceOpen(): void;
+  reset(): void;         // Force-close the circuit
+  forceOpen(): void;     // Force-open the circuit
   getStats(): CircuitBreakerStats;
 }
 ```
@@ -77,54 +87,56 @@ class CircuitBreaker {
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `failureThreshold` | `number` | `5` | Consecutive failures to open the circuit |
-| `openTimeoutMs` | `number` | `30000` | Time before transitioning to half-open |
-| `successThreshold` | `number` | `2` | Successful requests needed in half-open to close |
+| `successThreshold` | `number` | `3` | Successful requests needed in half-open to close |
+| `timeout` | `number` | `60000` | Time in ms before attempting half-open transition |
+| `monitoringWindow` | `number` | `60000` | Time window for counting failures |
 
-#### States
+#### State Machine
 
 ```
-                                                                 successThreshold met
-        ┌──────────┐   failureThreshold reached   ┌───────────┐ ──────────────────▶ ┌──────────┐
-        │  CLOSED  │ ──────────────────────────▶  │   OPEN    │                     │  CLOSED  │
-        └──────────┘                              └───────────┘ ◀────────────────── └──────────┘
-                                                         │     failureThreshold met
-                                                         │ openTimeoutMs elapsed
-                                                         ▼
-                                                  ┌───────────┐
-                                                  │ HALF-OPEN │
-                                                  └───────────┘
+                                successThreshold met
+  CLOSED ──(failureThreshold)──▶ OPEN ──(timeout elapsed)──▶ HALF-OPEN ──▶ CLOSED
+                                                                  │
+                                                                  └──(failureThreshold)──▶ OPEN
 ```
+
+- **CLOSED**: Normal operation. Failures count toward threshold. Successes reset the counter.
+- **OPEN**: All requests rejected immediately with `CircuitBreakerError`. Transitions to HALF-OPEN after `timeout` ms.
+- **HALF-OPEN**: Limited probe requests allowed. Successes count toward `successThreshold` → CLOSE. Failures count toward `failureThreshold` → OPEN. Only one probe in-flight at a time.
 
 #### `CircuitBreakerStats`
 
 ```typescript
 interface CircuitBreakerStats {
-  state: CircuitState;
-  failureCount: number;
-  successCount: number;
-  lastFailure: Date | null;
-  lastSuccess: Date | null;
-  openedAt: Date | null;
+  state: CircuitState;           // "closed" | "open" | "half-open"
+  failures: number;
+  successes: number;
+  lastFailureTime?: number;      // Unix ms
+  lastSuccessTime?: number;      // Unix ms
+  openedAt?: number;              // Unix ms (when circuit opened)
 }
 ```
 
 ### `CircuitBreakerError`
 
-Thrown when the circuit is open and a request is rejected.
+Thrown when a request is rejected because the circuit is open.
 
 ```typescript
 class CircuitBreakerError extends Error {
-  readonly code = "CIRCUIT_OPEN";
-  constructor(message?: string);
+  readonly cause?: Error;
+  readonly retryAfter?: number;  // Suggested wait time in ms
 }
 ```
 
 ### `RetryPolicy`
 
+Retries transient failures with exponential backoff and optional jitter.
+
 ```typescript
 class RetryPolicy {
-  constructor(config: RetryPolicyConfig);
-  execute<T>(fn: (attempt: number) => Promise<T>): Promise<T>;
+  constructor(config?: Partial<RetryPolicyConfig>);
+
+  execute<T>(fn: () => Promise<T>): Promise<T>;
   onRetry(listener: RetryListener): void;
 }
 ```
@@ -133,43 +145,70 @@ class RetryPolicy {
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `maxRetries` | `number` | `3` | Maximum retry attempts |
-| `baseDelayMs` | `number` | `1000` | Initial delay before first retry |
+| `maxAttempts` | `number` | `3` | Maximum execution attempts (including initial) |
+| `initialDelayMs` | `number` | `1000` | Delay before first retry |
 | `maxDelayMs` | `number` | `30000` | Maximum delay cap |
-| `jitter` | `boolean` | `true` | Add random jitter to delay |
-| `retryableErrors` | `{ name?, code?, message? }[]` | — | Errors that trigger retry |
+| `backoffMultiplier` | `number` | `2` | Exponential backoff multiplier |
+| `jitter` | `boolean` | `true` | Add ±25% random jitter to delay |
+| `retryableErrors` | `string[]` | `["ECONNRESET", "ETIMEDOUT", "ECONNREFUSED", "TimeoutError"]` | Error names/codes/messages that trigger retry |
 
-#### `RetryListener`
+#### Delay Calculation
+
+```
+delay = min(initialDelay × multiplier^(attempt-1) × [0.75…1.25], maxDelay)
+```
+
+#### `RetryContext`
+
+Passed to retry listeners on each retry.
 
 ```typescript
-type RetryListener = (context: RetryContext) => void;
-
 interface RetryContext {
-  attempt: number;
-  error: Error;
-  delayMs: number;
+  attempt: number;         // Current attempt number (0-indexed)
+  maxAttempts: number;     // Total configured attempts
+  delay: number;           // Delay before next attempt in ms
+  lastError?: Error;       // Error that triggered this retry
 }
+
+type RetryListener = (context: RetryContext) => void;
 ```
 
 ### `MaxRetriesExceededError`
 
+Thrown when all retry attempts are exhausted.
+
 ```typescript
 class MaxRetriesExceededError extends Error {
-  readonly code = "MAX_RETRIES_EXCEEDED";
-  readonly attempts: number;
-  readonly cause: Error;
+  readonly cause?: Error;        // The last error encountered
+  readonly attempts: number;     // Total attempts made
 }
+```
+
+### Factory Functions
+
+```typescript
+function createCircuitBreaker(name: string, config?: Partial<CircuitBreakerConfig>): CircuitBreaker;
+function createRetryPolicy(config?: Partial<RetryPolicyConfig>): RetryPolicy;
 ```
 
 ## Usage Patterns
 
-### Circuit Breaker + Retry Combo
+### Circuit Breaker + Retry Combo (Recommended)
 
 ```typescript
-const breaker = createCircuitBreaker({ failureThreshold: 3, openTimeoutMs: 60000 });
-const retry = createRetryPolicy({ maxRetries: 2, baseDelayMs: 500 });
+const breaker = createCircuitBreaker("provider-api", {
+  failureThreshold: 3,
+  timeout: 60000,
+});
 
-async function robustCall() {
+const retry = createRetryPolicy({
+  maxAttempts: 3,
+  initialDelayMs: 500,
+  maxDelayMs: 10000,
+  jitter: true,
+});
+
+async function robustProviderCall() {
   return breaker.execute(async () => {
     return retry.execute(async () => {
       return await callProviderApi();
@@ -178,42 +217,84 @@ async function robustCall() {
 }
 ```
 
-### Retryable Error Detection
+### Retry Listener for Observability
+
+```typescript
+const retry = createRetryPolicy({ maxAttempts: 3, initialDelayMs: 1000 });
+
+retry.onRetry(({ attempt, delay, lastError }) => {
+  logger.warn(`Retry ${attempt + 1} after ${delay}ms: ${lastError?.message}`, {
+    attempt,
+    delayMs: delay,
+    error: lastError?.message,
+  });
+});
+
+await retry.execute(() => callService());
+```
+
+### Custom Retryable Errors
 
 ```typescript
 const retry = createRetryPolicy({
-  maxRetries: 3,
+  maxAttempts: 5,
+  initialDelayMs: 2000,
   retryableErrors: [
-    { code: "ECONNREFUSED" },
-    { code: "ETIMEDOUT" },
-    { name: "TooManyRequestsError" },
-    { message: "*rate limit*" },
+    "ECONNREFUSED",         // Connection refused
+    "ETIMEDOUT",            // Timeout
+    "TooManyRequestsError",  // 429 rate limit
+    "*rate limit*",          // Wildcard message match
   ],
-});
-
-retry.onRetry(({ attempt, error, delayMs }) => {
-  console.log(`Retry ${attempt} after ${delayMs}ms: ${error.message}`);
 });
 ```
 
-### Check Circuit State Before Call
+### Circuit Breaker State Monitoring
 
 ```typescript
-const breaker = createCircuitBreaker({ failureThreshold: 5 });
+const breaker = createCircuitBreaker("critical-api", { failureThreshold: 5 });
 
-const stats = breaker.getStats();
-if (stats.state === "open") {
-  console.log("Circuit open — using fallback");
-  return fallbackResponse();
+setInterval(() => {
+  const stats = breaker.getStats();
+  metrics.gauge("circuit_breaker.state", stats.state === "closed" ? 1 : stats.state === "half-open" ? 0.5 : 0);
+  metrics.gauge("circuit_breaker.failures", stats.failures);
+  // Alert if circuit stays open > 5 minutes
+  if (stats.openedAt && Date.now() - stats.openedAt > 300000) {
+    alertOnCall("Circuit breaker open > 5min");
+  }
+}, 10000);
+```
+
+### Manual Circuit Control for Maintenance
+
+```typescript
+const breaker = createCircuitBreaker("maintenance-api");
+
+// Before maintenance: force open to shed load
+breaker.forceOpen();
+
+// After maintenance: reset circuit
+breaker.reset();
+```
+
+### Check Circuit State Before Call (with Fallback)
+
+```typescript
+const breaker = createCircuitBreaker("provider-api", { failureThreshold: 3 });
+
+async function safeCall() {
+  const stats = breaker.getStats();
+  if (stats.state === "open") {
+    logger.warn("Circuit open — using cached/fallback response");
+    return getCachedResponse();
+  }
+  return breaker.execute(() => callProvider());
 }
-
-const data = await breaker.execute(() => callProvider());
 ```
 
 ## Related Packages
 
-- [`@reaatech/media-pipeline-mcp`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp) — Core pipeline types
-- [`@reaatech/media-pipeline-mcp-server`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-server) — MCP server that uses resilience patterns
+- [`@reaatech/media-pipeline-mcp-core`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-core) — Core pipeline types, uses resilience patterns in provider calls
+- [`@reaatech/media-pipeline-mcp-provider-core`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-provider-core) — MediaProvider base class with built-in retry
 
 ## License
 

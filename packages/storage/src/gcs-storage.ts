@@ -1,9 +1,10 @@
+import type { Storage } from '@google-cloud/storage';
 import type { ArtifactMeta, ArtifactStore, GCSStorageConfig, StorageResult } from './types.js';
 
 export class GCSStorage implements ArtifactStore {
   private bucket: string;
   private prefix: string;
-  private storage: unknown;
+  private storage: Storage | null = null;
   private initialized = false;
   private config: GCSStorageConfig;
 
@@ -13,7 +14,7 @@ export class GCSStorage implements ArtifactStore {
     this.prefix = config.prefix || '';
   }
 
-  private async getClient(): Promise<any> {
+  private async getClient(): Promise<Storage> {
     if (!this.initialized) {
       const { Storage } = await import('@google-cloud/storage');
       const storageOptions: Record<string, unknown> = {};
@@ -22,7 +23,7 @@ export class GCSStorage implements ArtifactStore {
       this.storage = new Storage(storageOptions);
       this.initialized = true;
     }
-    return this.storage;
+    return this.storage as Storage;
   }
 
   private getName(id: string): string {
@@ -32,12 +33,12 @@ export class GCSStorage implements ArtifactStore {
     return this.prefix ? `${this.prefix}${id}` : id;
   }
 
-  async put(id: string, data: Buffer | ReadableStream, meta: ArtifactMeta): Promise<string> {
+  async put(id: string, data: Buffer | NodeJS.ReadableStream, meta: ArtifactMeta): Promise<string> {
     const storage = await this.getClient();
     const bucket = storage.bucket(this.bucket);
     const file = bucket.file(this.getName(id));
 
-    const buffer = Buffer.isBuffer(data) ? data : await this.streamToBuffer(data as ReadableStream);
+    const buffer = Buffer.isBuffer(data) ? data : await this.streamToBuffer(data);
 
     await file.save(buffer, {
       metadata: {
@@ -79,8 +80,8 @@ export class GCSStorage implements ArtifactStore {
       const data = file.createReadStream();
 
       return { data, meta: artifactMeta };
-    } catch (error: any) {
-      if (error.code === 404) {
+    } catch (error) {
+      if ((error as { code?: number }).code === 404) {
         throw new Error(`Artifact not found: ${id}`, { cause: error });
       }
       throw error;
@@ -99,8 +100,8 @@ export class GCSStorage implements ArtifactStore {
       });
 
       return url;
-    } catch (error: any) {
-      if (error.code === 404) {
+    } catch (error) {
+      if ((error as { code?: number }).code === 404) {
         throw new Error(`Artifact not found: ${id}`, { cause: error });
       }
       throw error;
@@ -114,8 +115,8 @@ export class GCSStorage implements ArtifactStore {
 
     try {
       await file.delete();
-    } catch (error: any) {
-      if (error.code !== 404) {
+    } catch (error) {
+      if ((error as { code?: number }).code !== 404) {
         throw error;
       }
     }
@@ -219,7 +220,7 @@ export class GCSStorage implements ArtifactStore {
     return 'application/octet-stream';
   }
 
-  private async streamToBuffer(stream: ReadableStream): Promise<Buffer> {
+  private async streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     const chunks: Uint8Array[] = [];
 
     const nodeStream = stream as unknown as NodeJS.ReadableStream;

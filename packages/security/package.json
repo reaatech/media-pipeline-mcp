@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-security",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Enterprise security features — API key and JWT authentication, RBAC, token bucket rate limiting, audit logging with SIEM export",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

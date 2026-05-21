@@ -18,6 +18,25 @@
       }
     }
   },
+  "overrides": [
+    {
+      "include": ["**/*.test.ts", "**/__tests__/**/*.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {},
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "complexity": {
+            "useLiteralKeys": "off"
+          },
+          "performance": {
+            "noDelete": "off"
+          }
+        }
+      }
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

@@ -2,10 +2,17 @@ import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
 import type {
   Artifact,
   Pipeline,
+  PipelineDefinition,
+  PipelineEstimate,
   PipelineStatus,
   PipelineStep,
+  VariantsConfig,
+  VariantsStepOutput,
 } from '@reaatech/media-pipeline-mcp-core';
+import type { PipelineExecutor } from '@reaatech/media-pipeline-mcp-core';
+import type { PipelineEstimator } from '@reaatech/media-pipeline-mcp-core';
 import { v4 as uuidv4 } from 'uuid';
+import type { VariantsExecutor, VariantsExecutorContext } from './variants.js';
 
 export interface PipelineTemplate {
   id: string;
@@ -19,10 +26,25 @@ export interface PipelineTemplateDefinition {
   variables?: Record<string, string>;
 }
 
+export interface PipelineOperationsOptions {
+  executor?: PipelineExecutor;
+  estimator?: PipelineEstimator;
+  variantsExecutor?: VariantsExecutor;
+}
+
 export class PipelineOperations {
   private templates: Map<string, PipelineTemplate> = new Map();
+  private executor?: PipelineExecutor;
+  private estimator?: PipelineEstimator;
+  private variantsExecutor?: VariantsExecutor;
 
-  constructor(private artifactRegistry: ArtifactRegistry) {
+  constructor(
+    private artifactRegistry: ArtifactRegistry,
+    options?: PipelineOperationsOptions,
+  ) {
+    this.executor = options?.executor;
+    this.estimator = options?.estimator;
+    this.variantsExecutor = options?.variantsExecutor;
     this.registerDefaultTemplates();
   }
 
@@ -137,7 +159,13 @@ export class PipelineOperations {
     return this.templates.get(templateId);
   }
 
-  validatePipeline(pipeline: Pipeline): { valid: boolean; errors: string[] } {
+  // Accepts any object with a `steps` array of `{ id, inputs }`. The full Pipeline
+  // shape (qualityGate enums, variants config, etc.) isn't needed for validation,
+  // so we don't gate test fixtures on it.
+  validatePipeline(pipeline: {
+    id?: string;
+    steps: Array<{ id: string; inputs: Record<string, unknown> }>;
+  }): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     // Check for duplicate step IDs
@@ -219,7 +247,15 @@ export class PipelineOperations {
     return steps;
   }
 
-  async executePipeline(pipeline: Pipeline): Promise<{
+  async executePipeline(pipeline: {
+    id?: string;
+    steps: Array<{
+      id: string;
+      operation: string;
+      inputs: Record<string, unknown>;
+      config?: Record<string, unknown>;
+    }>;
+  }): Promise<{
     status: PipelineStatus;
     artifacts: Artifact[];
     cost_usd: number;
@@ -286,7 +322,10 @@ export class PipelineOperations {
     };
   }
 
-  private interpolateStepInputs(step: PipelineStep, artifacts: Artifact[]): Record<string, string> {
+  private interpolateStepInputs(
+    step: { inputs: Record<string, unknown> },
+    artifacts: Artifact[],
+  ): Record<string, string> {
     const result: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(step.inputs)) {
@@ -326,8 +365,36 @@ export class PipelineOperations {
     if (operation.startsWith('document.')) return 'application/pdf';
     return 'text/plain';
   }
+
+  async resumePipeline(runId: string, fromStepId?: string): Promise<Pipeline> {
+    if (!this.executor) {
+      throw new Error('PipelineExecutor not configured');
+    }
+    return this.executor.resume(runId, fromStepId);
+  }
+
+  async estimatePipeline(pipeline: PipelineDefinition): Promise<PipelineEstimate> {
+    if (!this.estimator) {
+      throw new Error('PipelineEstimator not configured');
+    }
+    return this.estimator.estimate(pipeline);
+  }
+
+  async executeVariants(
+    step: PipelineStep,
+    variantsConfig: VariantsConfig,
+    context: VariantsExecutorContext,
+  ): Promise<VariantsStepOutput> {
+    if (!this.variantsExecutor) {
+      throw new Error('VariantsExecutor not configured');
+    }
+    return this.variantsExecutor.executeVariants(step, variantsConfig, context);
+  }
 }
 
-export function createPipelineOperations(artifactRegistry: ArtifactRegistry): PipelineOperations {
-  return new PipelineOperations(artifactRegistry);
+export function createPipelineOperations(
+  artifactRegistry: ArtifactRegistry,
+  options?: PipelineOperationsOptions,
+): PipelineOperations {
+  return new PipelineOperations(artifactRegistry, options);
 }

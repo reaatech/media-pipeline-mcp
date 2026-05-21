@@ -1,0 +1,8 @@
+{
+  "mesh.generate": {
+    "genie": {
+      "input": { "perUnit": 0.3, "unit": "1 generation" },
+      "expectedDurationMs": 60000
+    }
+  }
+}

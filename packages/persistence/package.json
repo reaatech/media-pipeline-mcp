@@ -1,0 +1,55 @@
+{
+  "name": "@reaatech/media-pipeline-mcp-persistence",
+  "version": "0.3.0",
+  "description": "Pipeline state persistence — run store, event log, locking",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/persistence"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/persistence#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reaatech/media-pipeline-mcp-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "debug": "^4.4.3",
+    "ioredis": "^5.4.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "ioredis": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    }
+  }
+}

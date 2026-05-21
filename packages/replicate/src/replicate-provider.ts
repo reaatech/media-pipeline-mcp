@@ -1,10 +1,14 @@
 import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
+  CostEstimate,
+  PricingTable,
+  ProviderCacheConfig,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
 import Replicate from 'replicate';
+import pricing from './pricing.json' with { type: 'json' };
 
 export interface ReplicateProviderConfig {
   apiKey: string;
@@ -21,6 +25,33 @@ export interface ReplicateProviderConfig {
 }
 
 export class ReplicateProvider extends MediaProvider {
+  static cacheConfig: ProviderCacheConfig = {
+    deterministicParams: ['prompt', 'model_version', 'seed'],
+    nonDeterministicParams: ['webhook', 'webhook_url'],
+    normalize: (inputs: Record<string, unknown>): Record<string, unknown> => {
+      const normalized: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(inputs)) {
+        if (key === 'webhook' || key === 'webhook_url') continue;
+        if (typeof value === 'string') {
+          normalized[key] = value.trim().replace(/\s+/g, ' ');
+        } else {
+          normalized[key] = value;
+        }
+      }
+      return normalized;
+    },
+  };
+
+  // §0.6 — replicate predictions stream `logs` as they run (we poll + bridge to
+  // step-progress events). Replicate also natively supports webhooks (svix-style).
+  readonly supportsStreaming = new Set([
+    'image.generate',
+    'image.upscale',
+    'image.remove_background',
+    'video.generate',
+  ]);
+  readonly supportsWebhooks = true;
+
   readonly name = 'replicate';
   readonly supportedOperations = [
     'image.upscale',
@@ -79,6 +110,20 @@ export class ReplicateProvider extends MediaProvider {
         error: (error as Error).message,
       };
     }
+  }
+
+  async estimateCost(input: ProviderInput): Promise<CostEstimate> {
+    const opPricing = (pricing as PricingTable)[input.operation];
+    if (!opPricing) {
+      return { costUsd: 0, currency: 'USD' };
+    }
+    const modelKey = Object.keys(opPricing)[0];
+    const entry = opPricing[modelKey];
+    return {
+      costUsd: entry?.input.perUnit ?? 0.01,
+      currency: 'USD',
+      estimatedDurationMs: entry?.expectedDurationMs,
+    };
   }
 
   async execute(input: ProviderInput): Promise<ProviderOutput> {
@@ -150,7 +195,9 @@ export class ReplicateProvider extends MediaProvider {
           throw new Error(`Unsupported operation: ${input.operation}`);
       }
 
-      const output = await (this.client.run as any)(model, replicateInput);
+      const output = await (
+        this.client.run as unknown as (m: string, i: Record<string, unknown>) => Promise<unknown>
+      )(model, replicateInput);
 
       // Convert output to ProviderOutput
       let data: Buffer;
@@ -180,7 +227,7 @@ export class ReplicateProvider extends MediaProvider {
       }
 
       // Estimate cost based on operation type
-      const cost = this.estimateCost(input.operation);
+      const cost = await this.lookupCost(input.operation);
 
       return {
         data,
@@ -202,17 +249,9 @@ export class ReplicateProvider extends MediaProvider {
     return `data:application/octet-stream;base64,${base64}`;
   }
 
-  private estimateCost(operation: string): number {
-    // Approximate costs based on Replicate pricing
-    const costs: Record<string, number> = {
-      'image.upscale': 0.005,
-      'image.remove_background': 0.003,
-      'image.inpaint': 0.01,
-      'audio.isolate': 0.01,
-      'video.generate': 0.1,
-      'video.image_to_video': 0.08,
-    };
-    return costs[operation] || 0.01;
+  private async lookupCost(operation: string): Promise<number> {
+    const estimate = await this.estimateCost({ operation, params: {}, config: {} });
+    return estimate.costUsd;
   }
 
   protected isNonRetryableError(error: Error): boolean {

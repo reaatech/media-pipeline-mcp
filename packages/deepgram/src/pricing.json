@@ -1,0 +1,18 @@
+{
+  "audio.stt": {
+    "nova-2": {
+      "input": { "perUnit": 0.0059, "unit": "per minute" },
+      "expectedDurationMs": 3000
+    },
+    "whisper": {
+      "input": { "perUnit": 0.004, "unit": "per minute" },
+      "expectedDurationMs": 5000
+    }
+  },
+  "audio.diarize": {
+    "nova-2": {
+      "input": { "perUnit": 0.0079, "unit": "per minute" },
+      "expectedDurationMs": 5000
+    }
+  }
+}

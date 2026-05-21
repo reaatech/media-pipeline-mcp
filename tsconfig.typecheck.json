@@ -22,7 +22,13 @@
       "@reaatech/media-pipeline-mcp-image-edit": ["./packages/image-edit/src/index.ts"],
       "@reaatech/media-pipeline-mcp-video-gen": ["./packages/video-gen/src/index.ts"],
       "@reaatech/media-pipeline-mcp-audio-gen": ["./packages/audio-gen/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-doc-extraction": ["./packages/doc-extraction/src/index.ts"]
+      "@reaatech/media-pipeline-mcp-doc-extraction": ["./packages/doc-extraction/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-persistence": ["./packages/persistence/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-cost": ["./packages/cost/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-provenance": ["./packages/provenance/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-keyvault": ["./packages/keyvault/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-meshy": ["./packages/meshy/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-luma": ["./packages/luma/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*"]

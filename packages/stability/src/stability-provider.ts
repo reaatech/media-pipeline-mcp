@@ -1,9 +1,13 @@
 import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
+  CostEstimate,
+  PricingTable,
+  ProviderCacheConfig,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import pricing from './pricing.json' with { type: 'json' };
 
 export interface StabilityConfig {
   apiKey: string;
@@ -12,6 +16,45 @@ export interface StabilityConfig {
 }
 
 export class StabilityProvider extends MediaProvider {
+  static cacheConfig: ProviderCacheConfig = {
+    deterministicParams: [
+      'prompt',
+      'model',
+      'steps',
+      'cfg_scale',
+      'width',
+      'height',
+      'seed',
+      'sampler',
+    ],
+    nonDeterministicParams: [],
+    normalize: (inputs: Record<string, unknown>): Record<string, unknown> => {
+      const normalized: Record<string, unknown> = {};
+
+      if (inputs.prompt !== undefined)
+        normalized.prompt = String(inputs.prompt).trim().replace(/\s+/g, ' ');
+      if (inputs.model !== undefined) normalized.model = inputs.model;
+      if (inputs.steps !== undefined) normalized.steps = inputs.steps;
+      if (inputs.cfg_scale !== undefined) normalized.cfg_scale = inputs.cfg_scale;
+      if (inputs.width !== undefined) normalized.width = inputs.width;
+      if (inputs.height !== undefined) normalized.height = inputs.height;
+      if (inputs.seed !== undefined) normalized.seed = inputs.seed;
+
+      if (inputs.sampler !== undefined) {
+        const sampler = String(inputs.sampler);
+        if (sampler !== 'auto') {
+          normalized.sampler = sampler;
+        }
+      }
+
+      return normalized;
+    },
+  };
+
+  // §0.6 — stability image gen is synchronous; no streaming, no webhooks.
+  readonly supportsStreaming = new Set<string>();
+  readonly supportsWebhooks = false;
+
   readonly name = 'stability-ai';
   readonly supportedOperations = ['image.generate'];
 
@@ -54,6 +97,20 @@ export class StabilityProvider extends MediaProvider {
         error: (error as Error).message,
       };
     }
+  }
+
+  async estimateCost(input: ProviderInput): Promise<CostEstimate> {
+    const opPricing = (pricing as PricingTable)[input.operation];
+    if (!opPricing) {
+      return { costUsd: 0, currency: 'USD' };
+    }
+    const model = (input.params.model as string) || this.model;
+    const entry = opPricing[model];
+    const steps = (input.params.steps as number) || 30;
+    const baseCost = entry?.input.perUnit ?? 0.007;
+    const perStep = entry?.perStep ?? 0;
+    const costUsd = baseCost + perStep * steps;
+    return { costUsd, currency: 'USD', estimatedDurationMs: entry?.expectedDurationMs };
   }
 
   async execute(input: ProviderInput): Promise<ProviderOutput> {

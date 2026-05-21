@@ -1,9 +1,13 @@
 import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
+  CostEstimate,
+  PricingTable,
+  ProviderCacheConfig,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import pricing from './pricing.json' with { type: 'json' };
 
 export interface OpenAIConfig {
   apiKey: string;
@@ -13,6 +17,49 @@ export interface OpenAIConfig {
 }
 
 export class OpenAIProvider extends MediaProvider {
+  static cacheConfig: ProviderCacheConfig = {
+    deterministicParams: ['prompt', 'model', 'size', 'quality', 'style', 'text', 'voice', 'speed'],
+    nonDeterministicParams: [
+      'n',
+      'response_format',
+      'user',
+      'output_format',
+      'num_outputs',
+      'style_preset',
+      'dimensions',
+      'artifact_data',
+      'mime_type',
+      'detail',
+      'detail_level',
+      'audio_data',
+      'language',
+    ],
+    normalize: (inputs: Record<string, unknown>): Record<string, unknown> => {
+      const normalized: Record<string, unknown> = {};
+
+      if (inputs.prompt !== undefined)
+        normalized.prompt = String(inputs.prompt).trim().replace(/\s+/g, ' ');
+      if (inputs.model !== undefined) normalized.model = inputs.model;
+      if (inputs.size !== undefined) normalized.size = inputs.size;
+      else if (inputs.dimensions !== undefined) normalized.size = inputs.dimensions;
+      if (inputs.quality !== undefined) normalized.quality = inputs.quality;
+      if (inputs.style !== undefined) normalized.style = inputs.style;
+      else if (inputs.style_preset !== undefined) normalized.style = inputs.style_preset;
+
+      if (inputs.text !== undefined)
+        normalized.text = String(inputs.text).trim().replace(/\s+/g, ' ');
+      if (inputs.voice !== undefined) normalized.voice = inputs.voice;
+      if (inputs.speed !== undefined) normalized.speed = inputs.speed;
+
+      return normalized;
+    },
+  };
+
+  // §0.6 — openai streams TTS bytes for audio.tts and tokens for text.complete /
+  // image.describe (gpt-4o stream). Image generation is one-shot/sync.
+  readonly supportsStreaming = new Set(['audio.tts', 'text.complete', 'image.describe']);
+  readonly supportsWebhooks = false;
+
   readonly name = 'openai';
   readonly supportedOperations = ['image.generate', 'image.describe', 'audio.tts', 'audio.stt'];
 
@@ -54,6 +101,58 @@ export class OpenAIProvider extends MediaProvider {
         latency: Date.now() - startTime,
         error: (error as Error).message,
       };
+    }
+  }
+
+  async estimateCost(input: ProviderInput): Promise<CostEstimate> {
+    const opPricing = (pricing as PricingTable)[input.operation];
+    if (!opPricing) {
+      return { costUsd: 0, currency: 'USD' };
+    }
+
+    const model = (input.params.model as string) || this.defaultModelForOperation(input.operation);
+
+    switch (input.operation) {
+      case 'image.generate': {
+        const quality = (input.params.quality as string) || 'standard';
+        const dimensions =
+          (input.params.dimensions as string) || (input.params.size as string) || '1024x1024';
+        const modelKey = quality === 'hd' ? 'dall-e-3-hd' : 'dall-e-3';
+        const entry = opPricing[modelKey];
+        let multiplier = 1;
+        if (dimensions === '1024x1792' || dimensions === '1792x1024') {
+          multiplier = quality === 'hd' ? 3 : 2;
+        }
+        return {
+          costUsd: (entry?.input.perUnit ?? 0.04) * multiplier,
+          currency: 'USD',
+          estimatedDurationMs: entry?.expectedDurationMs,
+        };
+      }
+      case 'audio.tts': {
+        const text = (input.params.text as string) || '';
+        const entry = opPricing[model];
+        const costUsd = (text.length / 1_000_000) * (entry?.input.perUnit ?? 15.0);
+        return { costUsd, currency: 'USD', estimatedDurationMs: entry?.expectedDurationMs };
+      }
+      case 'audio.stt': {
+        const entry = opPricing[model];
+        const audioData = input.params.audio_data as Buffer | undefined;
+        const estimatedMinutes = audioData ? Math.max(audioData.length / (960 * 1024), 0.1) : 1;
+        const costUsd = estimatedMinutes * (entry?.input.perUnit ?? 0.006);
+        return { costUsd, currency: 'USD', estimatedDurationMs: entry?.expectedDurationMs };
+      }
+      default: {
+        const entry = opPricing[model];
+        const inputPerUnit = (entry?.input.perUnit as number) ?? 0.0025;
+        const outputPerUnit = (entry?.output?.perUnit as number) ?? 0.01;
+        const estimatedInputTokens = 500;
+        const estimatedOutputTokens = 200;
+        const costUsd =
+          (estimatedInputTokens / 1000) * inputPerUnit +
+          (estimatedOutputTokens / 1000) * outputPerUnit;
+        return { costUsd, currency: 'USD', estimatedDurationMs: entry?.expectedDurationMs };
+      }
     }
   }
 
@@ -226,7 +325,7 @@ export class OpenAIProvider extends MediaProvider {
     const { audio_data, language } = input.params;
 
     const formData = new FormData();
-    const blob = new Blob([audio_data as Buffer], { type: 'audio/mpeg' });
+    const blob = new Blob([new Uint8Array(audio_data as Buffer)], { type: 'audio/mpeg' });
     formData.append('file', blob, 'audio.mp3');
     formData.append('model', 'whisper-1');
     if (language) {
@@ -263,6 +362,16 @@ export class OpenAIProvider extends MediaProvider {
       costUsd: 0.006,
       durationMs: Date.now() - startTime,
     };
+  }
+
+  private defaultModelForOperation(operation: string): string {
+    const defaults: Record<string, string> = {
+      'image.generate': 'dall-e-3',
+      'image.describe': 'gpt-4o',
+      'audio.tts': 'tts-1',
+      'audio.stt': 'whisper-1',
+    };
+    return defaults[operation] || 'gpt-4o';
   }
 
   private getHeaders(): Record<string, string> {

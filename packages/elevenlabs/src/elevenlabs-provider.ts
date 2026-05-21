@@ -1,9 +1,13 @@
 import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
+  CostEstimate,
+  PricingTable,
+  ProviderCacheConfig,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import pricing from './pricing.json' with { type: 'json' };
 
 export interface ElevenLabsProviderConfig {
   apiKey: string;
@@ -27,6 +31,27 @@ interface ElevenLabsTTSRequest {
 }
 
 export class ElevenLabsProvider extends MediaProvider {
+  static cacheConfig: ProviderCacheConfig = {
+    deterministicParams: ['text', 'voice_id', 'voice', 'model', 'voice_settings'],
+    nonDeterministicParams: [],
+    normalize: (inputs: Record<string, unknown>): Record<string, unknown> => {
+      const normalized: Record<string, unknown> = {};
+      if (inputs.text !== undefined)
+        normalized.text = String(inputs.text).trim().replace(/\s+/g, ' ');
+      if (inputs.voice !== undefined) normalized.voice = inputs.voice;
+      if (inputs.voice_id !== undefined) normalized.voice_id = inputs.voice_id;
+      if (inputs.model !== undefined) normalized.model = inputs.model;
+      if (inputs.voice_settings !== undefined) {
+        normalized.voice_settings = inputs.voice_settings;
+      }
+      return normalized;
+    },
+  };
+
+  // §0.6 — elevenlabs streams TTS bytes natively. No native webhook surface.
+  readonly supportsStreaming = new Set(['audio.tts']);
+  readonly supportsWebhooks = false;
+
   readonly name = 'elevenlabs';
   readonly supportedOperations = ['audio.tts'];
 
@@ -70,6 +95,18 @@ export class ElevenLabsProvider extends MediaProvider {
         error: (error as Error).message,
       };
     }
+  }
+
+  async estimateCost(input: ProviderInput): Promise<CostEstimate> {
+    const opPricing = (pricing as PricingTable)[input.operation];
+    if (!opPricing) {
+      return { costUsd: 0, currency: 'USD' };
+    }
+    const model = (input.params.model as string) || 'eleven_monolingual_v1';
+    const entry = opPricing[model] || opPricing.eleven_monolingual_v1;
+    const text = (input.params.text as string) || '';
+    const costUsd = text.length * (entry?.input.perUnit ?? 0.0003);
+    return { costUsd, currency: 'USD', estimatedDurationMs: entry?.expectedDurationMs };
   }
 
   async execute(input: ProviderInput): Promise<ProviderOutput> {
@@ -128,7 +165,7 @@ export class ElevenLabsProvider extends MediaProvider {
 
       const mimeType = this.getMimeType(format);
       const duration = this.estimateDuration(text);
-      const cost = this.estimateCost(text.length);
+      const cost = (await this.estimateCost(input)).costUsd;
 
       return {
         data,
@@ -190,12 +227,6 @@ export class ElevenLabsProvider extends MediaProvider {
     // So ~750 characters per minute = ~12.5 characters per second
     const charsPerSecond = 12.5;
     return Math.ceil(text.length / charsPerSecond);
-  }
-
-  private estimateCost(characterCount: number): number {
-    // ElevenLabs pricing: ~$0.30 per 1000 characters for standard voice
-    const costPerCharacter = 0.0003;
-    return characterCount * costPerCharacter;
   }
 
   protected isNonRetryableError(error: Error): boolean {

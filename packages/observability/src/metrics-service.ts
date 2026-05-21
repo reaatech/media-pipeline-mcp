@@ -1,4 +1,4 @@
-import { ValueType } from '@opentelemetry/api';
+import { type Counter, type Gauge, type Histogram, ValueType } from '@opentelemetry/api';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
@@ -7,13 +7,13 @@ import type { ObservabilityConfig } from './observability-service.js';
 
 export class MetricsService {
   private meterProvider?: MeterProvider;
-  private operationDurationHistogram?: any;
-  private operationCostHistogram?: any;
-  private pipelineDurationHistogram?: any;
-  private pipelineStepsCounter?: any;
-  private qualityGatePassRateGauge?: any;
-  private qualityGateRetryCounter?: any;
-  private providerErrorRateGauge?: any;
+  private operationDurationHistogram?: Histogram;
+  private operationCostHistogram?: Histogram;
+  private pipelineDurationHistogram?: Histogram;
+  private pipelineStepsCounter?: Counter;
+  private qualityGatePassRateGauge?: Gauge;
+  private qualityGateRetryCounter?: Counter;
+  private providerErrorRateGauge?: Gauge;
 
   constructor(config: ObservabilityConfig) {
     const resource = new Resource({

@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-elevenlabs",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "ElevenLabs provider — high-quality text-to-speech with voice selection, speed control, and voice tuning",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

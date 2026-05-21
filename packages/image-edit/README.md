@@ -6,7 +6,7 @@
 
 > **Status:** Pre-1.0 — APIs may change in minor versions. Pin to a specific version in production.
 
-Image editing operations using Sharp for local processing (resize, crop, composite) with provider delegation for upscale, background removal, inpainting, and description.
+Image editing operations — local Sharp-based processing for resize, crop, and composite, plus provider delegation for upscale, background removal, inpainting, and description via vision-capable LLMs.
 
 ## Installation
 
@@ -18,81 +18,112 @@ pnpm add @reaatech/media-pipeline-mcp-image-edit
 
 ## Feature Overview
 
-- **Local processing** — resize, crop, and composite via Sharp (no external API calls)
-- **Provider delegation** — upscale, background removal, inpainting, and description via registered providers
+- **Local processing** — resize, crop, and composite via Sharp (no external API calls, zero latency overhead)
+- **Provider delegation** — upscale, background removal, inpainting, and image description via registered providers
 - **Multi-provider routing** — operation-based lookup with preferred provider selection
+- **Proportional scaling** — specify one dimension and the other auto-calculates from aspect ratio
 - **Fit modes** — cover, contain, fill, inside, outside for resize operations
-- **Compositing** — gravity positioning, blend modes, opacity control
+- **Gravity compositing** — position overlays with Sharp gravity (north, southeast, center, etc.)
+- **Blend modes** — Sharp blend modes for composite operations with opacity control
+- **Inpainting with masks** — region-based inpainting using optional mask artifacts
+- **Image description** — generate text descriptions at brief, detailed, or structured levels
 
 ## Quick Start
 
 ```typescript
 import { createImageEditOperations } from "@reaatech/media-pipeline-mcp-image-edit";
+import { StabilityProvider } from "@reaatech/media-pipeline-mcp-stability";
+import { ReplicateProvider } from "@reaatech/media-pipeline-mcp-replicate";
 
-const ops = createImageEditOperations();
+const ops = createImageEditOperations(artifactRegistry, storage);
 
-// Resize an image
-const resized = await ops.resize({
-  artifact_id: "img-123",
-  dimensions: "800x600",
+// Register providers for delegated operations
+ops.registerProvider("stability", new StabilityProvider({ apiKey: process.env.STABILITY_API_KEY! }));
+ops.registerProvider("replicate", new ReplicateProvider({ apiKey: process.env.REPLICATE_API_KEY! }));
+
+// Local operations (no provider needed)
+
+// Resize an image — Sharp-based, local
+const resized = await ops.resize("img-123", {
+  width: 800,
+  height: 600,
   fit: "cover",
 });
 
-// Crop an image
-const cropped = await ops.crop({
-  artifact_id: "img-123",
+// Crop an image region — Sharp-based, local
+const cropped = await ops.crop("img-123", {
   x: 100,
   y: 50,
   width: 400,
   height: 300,
 });
 
-// Composite an overlay
-const composed = await ops.composite({
-  base_artifact_id: "img-123",
-  overlay_artifact_id: "watermark-456",
-  position: "southeast",
+// Composite an overlay image — Sharp-based, local
+const composed = await ops.composite("base-123", "watermark-456", {
+  gravity: "southeast",
+  blend: "over",
   opacity: 0.5,
-  blend_mode: "over",
+});
+
+// Provider-delegated operations
+
+// Upscale via external provider
+const upscaled = await ops.upscale({
+  artifactId: "img-123",
+  scale: 4,
+  model: "real-esrgan",
+});
+
+// Remove background
+const cutout = await ops.removeBackground({
+  artifactId: "img-123",
+  provider: "replicate",
+});
+
+// Inpaint a region
+const inpainted = await ops.inpaint({
+  artifactId: "img-123",
+  maskArtifactId: "mask-456",  // optional
+  prompt: "Replace this area with blue sky",
+});
+
+// Describe an image
+const desc = await ops.describe({
+  artifactId: "img-123",
+  detail: "detailed",
+  provider: "anthropic",
 });
 ```
 
-## Supported Operations
-
-### Local (Sharp-based)
-
-| Operation | Description |
-|-----------|-------------|
-| `resize` | Resize with fit modes, proportional scaling |
-| `crop` | Crop with x/y/width/height coordinates |
-| `composite` | Overlay compositing with positioning and blending |
-
-### Provider-delegated
-
-| Operation | Description |
-|-----------|-------------|
-| `upscale` | Upscale via external provider (Real-ESRGAN, etc.) |
-| `remove_background` | Background removal via external provider |
-| `inpaint` | Region inpainting with optional mask artifact |
-| `describe` | Image description via vision-capable provider |
-
 ## API Reference
 
-### `createImageEditOperations()`
+### `createImageEditOperations(artifactRegistry, storage)`
+
+Factory function that creates an `ImageEditOperations` instance bound to the given artifact registry and store.
 
 ```typescript
-function createImageEditOperations(): ImageEditOperations;
+function createImageEditOperations(
+  artifactRegistry: ArtifactRegistry,
+  storage: ArtifactStore,
+): ImageEditOperations;
 ```
 
 ### `ImageEditOperations`
 
+Main class providing all image editing capabilities. Local operations (resize, crop, composite) run via Sharp. Provider-delegated operations (upscale, remove_background, inpaint, describe) route to the first registered provider that supports the operation type.
+
 ```typescript
 class ImageEditOperations {
-  setProviders(providers: Provider[]): void;
+  constructor(artifactRegistry: ArtifactRegistry, storage: ArtifactStore);
 
-  resize(config: ResizeConfig): Promise<Artifact>;
-  crop(config: CropConfig): Promise<Artifact>;
-  composite(config: CompositeConfig): Promise<Artifact>;
+  registerProvider(name: string, provider: MediaProvider): void;
+
+  // Local operations (Sharp-based)
+  resize(artifactId: string, config: ResizeConfig): Promise<Artifact>;
+  crop(artifactId: string, config: CropConfig): Promise<Artifact>;
+  composite(baseArtifactId: string, overlayArtifactId: string, config: CompositeConfig): Promise<Artifact>;
+
+  // Provider-delegated operations
   upscale(config: UpscaleConfig): Promise<Artifact>;
   removeBackground(config: RemoveBackgroundConfig): Promise<Artifact>;
   inpaint(config: InpaintConfig): Promise<Artifact>;
@@ -102,76 +133,85 @@ class ImageEditOperations {
 
 ### Operation Configs
 
-#### `ResizeConfig`
+#### Local Operations
+
+##### `ResizeConfig`
 
 ```typescript
 interface ResizeConfig {
-  artifact_id: string;
-  dimensions: string;           // "WxH" or single dimension
-  fit?: "cover" | "contain" | "fill" | "inside" | "outside";
+  width?: number;                       // Target width in pixels
+  height?: number;                      // Target height in pixels
+  fit?: "cover" | "contain" | "fill" | "inside" | "outside";  // Fit mode (default: "cover")
+  position?: number[] | string;         // Position for fit (e.g., "center", [x, y])
+  background?: string;                  // Background color for padding (e.g., "#000000")
 }
 ```
 
-#### `CropConfig`
+If only one dimension is provided, the other is auto-calculated preserving aspect ratio.
+
+##### `CropConfig`
 
 ```typescript
 interface CropConfig {
-  artifact_id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number;                            // Left coordinate in pixels
+  y: number;                            // Top coordinate in pixels
+  width: number;                        // Crop width in pixels
+  height: number;                       // Crop height in pixels
 }
 ```
 
-#### `CompositeConfig`
+##### `CompositeConfig`
 
 ```typescript
 interface CompositeConfig {
-  base_artifact_id: string;
-  overlay_artifact_id: string;
-  position?: string;           // Gravity position (north, southeast, center, etc.)
-  opacity?: number;            // 0–1
-  blend_mode?: string;         // Sharp blend mode
+  top?: number;                         // Top offset in pixels (overrides gravity)
+  left?: number;                        // Left offset in pixels (overrides gravity)
+  blend?: Sharp.Blend;                  // Blend mode ("over", "multiply", "screen", etc.)
+  gravity?: Sharp.Gravity;              // Position ("north", "southeast", "center", etc.)
+  opacity?: number;                     // Overlay opacity 0–1
 }
 ```
 
-#### `UpscaleConfig`
+#### Provider-Delegated Operations
+
+##### `UpscaleConfig`
 
 ```typescript
 interface UpscaleConfig {
-  artifact_id: string;
-  scale: "2x" | "4x" | "8x";
-  model?: string;
+  artifactId: string;                   // ID of the image to upscale
+  scale?: 2 | 4;                        // Scale factor (default: 4)
+  model?: string;                       // Model override (default: "real-esrgan")
+  provider?: string;                    // Force specific provider
 }
 ```
 
-#### `RemoveBackgroundConfig`
+##### `RemoveBackgroundConfig`
 
 ```typescript
 interface RemoveBackgroundConfig {
-  artifact_id: string;
-  output_format?: "png" | "webp";
+  artifactId: string;                   // ID of the image
+  provider?: string;                    // Force specific provider
 }
 ```
 
-#### `InpaintConfig`
+##### `InpaintConfig`
 
 ```typescript
 interface InpaintConfig {
-  artifact_id: string;
-  mask_artifact_id?: string;
-  prompt: string;
-  negative_prompt?: string;
+  artifactId: string;                   // ID of the image to inpaint
+  maskArtifactId?: string;              // Optional mask artifact (white = inpaint area)
+  prompt: string;                       // Description of what to generate in the masked area
+  provider?: string;                    // Force specific provider
 }
 ```
 
-#### `DescribeConfig`
+##### `DescribeConfig`
 
 ```typescript
 interface DescribeConfig {
-  artifact_id: string;
-  detail?: "brief" | "detailed" | "structured";
+  artifactId: string;                   // ID of the image to describe
+  detail?: "brief" | "detailed" | "structured";  // Level of detail (default: "detailed")
+  provider?: string;                    // Force specific provider
 }
 ```
 
@@ -180,59 +220,149 @@ interface DescribeConfig {
 ### Resize with Proportional Scaling
 
 ```typescript
-// Fix width, auto-height
-await ops.resize({ artifact_id: "img-123", dimensions: "800" });
+// Fix width, auto-height (preserves aspect ratio)
+await ops.resize("img-123", { width: 800, fit: "inside" });
 
-// Fix height, auto-width
-await ops.resize({ artifact_id: "img-123", dimensions: "x600" });
+// Fix height, auto-width (preserves aspect ratio)
+await ops.resize("img-123", { height: 600, fit: "inside" });
 
-// Exact dimensions with fit
-await ops.resize({ artifact_id: "img-123", dimensions: "800x600", fit: "contain" });
+// Exact dimensions with fit mode
+await ops.resize("img-123", {
+  width: 800,
+  height: 600,
+  fit: "cover",     // crops to fill
+});
+
+await ops.resize("img-123", {
+  width: 800,
+  height: 600,
+  fit: "contain",   // letterboxes to fit
+});
+
+await ops.resize("img-123", {
+  width: 800,
+  height: 600,
+  fit: "fill",      // stretches to fill
+});
+```
+
+### Crop with Exact Coordinates
+
+```typescript
+const cropped = await ops.crop("img-123", {
+  x: 100,
+  y: 50,
+  width: 400,
+  height: 300,
+});
+
+console.log(cropped.metadata.width);   // 400
+console.log(cropped.metadata.height);  // 300
+console.log(cropped.metadata.cropX);   // 100
+console.log(cropped.metadata.cropY);   // 50
 ```
 
 ### Composite with Gravity Positioning
 
 ```typescript
 // Position watermark at bottom-right
-await ops.composite({
-  base_artifact_id: "photo-123",
-  overlay_artifact_id: "logo-456",
-  position: "southeast",
+await ops.composite("photo-123", "logo-456", {
+  gravity: "southeast",
+  blend: "over",
   opacity: 0.3,
 });
 
 // Center overlay with custom blend mode
-await ops.composite({
-  base_artifact_id: "photo-123",
-  overlay_artifact_id: "texture-789",
-  position: "center",
-  blend_mode: "multiply",
+await ops.composite("photo-123", "texture-789", {
+  gravity: "center",
+  blend: "multiply",
+  opacity: 1.0,
+});
+
+// Exact pixel positioning (overrides gravity)
+await ops.composite("photo-123", "overlay-456", {
+  top: 50,
+  left: 100,
+  blend: "over",
 });
 ```
 
-### Provider Delegation
+### Provider Delegation with Fallback
 
 ```typescript
 import { StabilityProvider } from "@reaatech/media-pipeline-mcp-stability";
+import { ReplicateProvider } from "@reaatech/media-pipeline-mcp-replicate";
 
-const ops = createImageEditOperations();
-ops.setProviders([
-  new StabilityProvider({ apiKey: process.env.STABILITY_API_KEY! }),
-]);
+const ops = createImageEditOperations(artifactRegistry, storage);
 
-const artifact = await ops.upscale({
-  artifact_id: "img-123",
-  scale: "4x",
+// Register multiple providers — operations auto-route to first capable provider
+ops.registerProvider("replicate", new ReplicateProvider({ apiKey: process.env.REPLICATE_API_KEY! }));
+ops.registerProvider("stability", new StabilityProvider({ apiKey: process.env.STABILITY_API_KEY! }));
+
+// Upscale — routes to first provider supporting "image.upscale"
+const upscaled = await ops.upscale({
+  artifactId: "img-123",
+  scale: 4,
 });
-console.log(artifact.metadata.source); // "upscale"
-console.log(artifact.metadata.provider); // "stability"
+console.log(upscaled.metadata.provider);  // "replicate" (first registered)
+console.log(upscaled.metadata.scale);     // 4
+console.log(upscaled.metadata.costUsd);   // 0.02
+
+// Force a specific provider
+const withStability = await ops.upscale({
+  artifactId: "img-123",
+  scale: 4,
+  provider: "stability",  // explicitly use Stability
+});
+```
+
+### Image Description
+
+```typescript
+// Brief description
+const brief = await ops.describe({
+  artifactId: "img-123",
+  detail: "brief",
+});
+
+// Detailed description (default)
+const detailed = await ops.describe({
+  artifactId: "img-123",
+  detail: "detailed",
+});
+
+// Structured description
+const structured = await ops.describe({
+  artifactId: "img-123",
+  detail: "structured",
+});
+```
+
+### Inpainting with Mask
+
+```typescript
+// Inpaint using a separate mask artifact
+const inpainted = await ops.inpaint({
+  artifactId: "img-123",
+  maskArtifactId: "mask-456",  // white areas in mask = to be inpainted
+  prompt: "Replace with a brick wall texture",
+});
+
+// Inpaint without a mask (full image transformation)
+const transformed = await ops.inpaint({
+  artifactId: "img-123",
+  prompt: "Add snow mountains in the background",
+});
 ```
 
 ## Related Packages
 
-- [`@reaatech/media-pipeline-mcp`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp) — Core pipeline types
+- [`@reaatech/media-pipeline-mcp-core`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-core) — Core pipeline types and interfaces
 - [`@reaatech/media-pipeline-mcp-provider-core`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-provider-core) — Provider interface
 - [`@reaatech/media-pipeline-mcp-storage`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-storage) — Artifact storage
+- [`@reaatech/media-pipeline-mcp-replicate`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-replicate) — Upscale/background removal provider
+- [`@reaatech/media-pipeline-mcp-stability`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-stability) — Inpainting provider
+- [`@reaatech/media-pipeline-mcp-fal`](https://www.npmjs.com/package/@reaatech/media-pipeline-mcp-fal) — Upscale/background removal provider
 
 ## License
 

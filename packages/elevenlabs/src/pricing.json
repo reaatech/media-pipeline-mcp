@@ -1,0 +1,16 @@
+{
+  "audio.tts": {
+    "eleven_monolingual_v1": {
+      "input": { "perUnit": 0.0003, "unit": "per character" },
+      "expectedDurationMs": 2000
+    },
+    "eleven_multilingual_v2": {
+      "input": { "perUnit": 0.0005, "unit": "per character" },
+      "expectedDurationMs": 3000
+    },
+    "eleven_turbo_v2": {
+      "input": { "perUnit": 0.0002, "unit": "per character" },
+      "expectedDurationMs": 1000
+    }
+  }
+}

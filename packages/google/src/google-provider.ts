@@ -1,11 +1,62 @@
+import { createHash } from 'node:crypto';
 import { PredictionServiceClient } from '@google-cloud/aiplatform';
 import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
 import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+
+// Minimal structural type for Document AI responses — the SDK's full type tree is large
+// and we only touch a tiny subset (pages > blocks > paragraphs > words > symbols, plus tables and formFields).
+interface DocumentAITextAnchor {
+  textAnchor?: { text?: string };
+}
+interface DocumentAICell {
+  layout?: DocumentAITextAnchor;
+}
+interface DocumentAIRow {
+  cells: DocumentAICell[];
+}
+interface DocumentAITable {
+  headerRows?: DocumentAIRow[];
+  bodyRows?: DocumentAIRow[];
+}
+interface DocumentAIFormField {
+  fieldName?: DocumentAITextAnchor;
+  fieldValue?: DocumentAITextAnchor;
+}
+interface DocumentAISymbol {
+  text?: string;
+}
+interface DocumentAIWord {
+  symbols?: DocumentAISymbol[];
+}
+interface DocumentAIParagraph {
+  words?: DocumentAIWord[];
+}
+interface DocumentAIBlock {
+  paragraphs?: DocumentAIParagraph[];
+}
+interface DocumentAIPage {
+  blocks?: DocumentAIBlock[];
+  tables?: DocumentAITable[];
+  formFields?: DocumentAIFormField[];
+}
+interface DocumentAIDocument {
+  text?: string;
+  textConfidence?: number;
+  pages?: DocumentAIPage[];
+}
+interface DocumentAITableData {
+  headers: string[];
+  rows: string[][];
+}
 import type {
+  CostEstimate,
+  PricingTable,
+  ProviderCacheConfig,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import pricing from './pricing.json' with { type: 'json' };
 
 export interface GoogleProviderConfig {
   projectId: string;
@@ -17,6 +68,58 @@ export interface GoogleProviderConfig {
 }
 
 export class GoogleProvider extends MediaProvider {
+  // F2: per-plan table — Vertex Gemini is non-deterministic without an explicit
+  // `seed`; cache key includes `prompt, model, generationConfig`. DocAI is
+  // deterministic on (sha256(document), processorId).
+  static cacheConfig: ProviderCacheConfig = {
+    deterministicParams: [
+      'prompt',
+      'model',
+      'system',
+      'generationConfig',
+      'temperature',
+      'top_p',
+      'top_k',
+      'max_output_tokens',
+      'seed',
+      'document_data',
+      'processor_id',
+      'mime_type',
+    ],
+    nonDeterministicParams: ['request_id'],
+    normalize: (inputs: Record<string, unknown>): Record<string, unknown> => {
+      const normalized: Record<string, unknown> = {};
+      if (inputs.prompt !== undefined)
+        normalized.prompt = String(inputs.prompt).trim().replace(/\s+/g, ' ');
+      if (inputs.model !== undefined) normalized.model = inputs.model;
+      if (inputs.system !== undefined)
+        normalized.system = String(inputs.system).trim().replace(/\s+/g, ' ');
+      if (inputs.generationConfig !== undefined)
+        normalized.generationConfig = inputs.generationConfig;
+      if (inputs.temperature !== undefined) normalized.temperature = inputs.temperature;
+      if (inputs.top_p !== undefined) normalized.top_p = inputs.top_p;
+      if (inputs.top_k !== undefined) normalized.top_k = inputs.top_k;
+      if (inputs.max_output_tokens !== undefined)
+        normalized.max_output_tokens = inputs.max_output_tokens;
+      if (inputs.seed !== undefined) normalized.seed = inputs.seed;
+      if (inputs.processor_id !== undefined) normalized.processor_id = inputs.processor_id;
+      if (inputs.mime_type !== undefined) normalized.mime_type = inputs.mime_type;
+      // Hash document bytes so DocAI cache key stays compact.
+      if (inputs.document_data !== undefined) {
+        const buf = Buffer.isBuffer(inputs.document_data)
+          ? inputs.document_data
+          : Buffer.from(String(inputs.document_data));
+        normalized.document_sha256 = createHash('sha256').update(buf).digest('hex');
+      }
+      return normalized;
+    },
+  };
+
+  // §0.6 — Vertex Gemini streams; Document AI is synchronous and one-shot.
+  // No native webhook surface.
+  readonly supportsStreaming = new Set(['image.describe']);
+  readonly supportsWebhooks = false;
+
   readonly name = 'google';
   readonly supportedOperations = [
     'document.ocr',
@@ -70,7 +173,9 @@ export class GoogleProvider extends MediaProvider {
       if (this.config.documentAiProcessorId) {
         const client = this.getDocumentClient();
         const name = `projects/${this.config.projectId}/locations/${this.config.location || this.defaultLocation}/processors/${this.config.documentAiProcessorId}`;
-        await (client as any).getProcessor({ name });
+        await (
+          client as unknown as { getProcessor: (req: { name: string }) => Promise<unknown> }
+        ).getProcessor({ name });
       }
 
       return {
@@ -84,6 +189,19 @@ export class GoogleProvider extends MediaProvider {
         error: (error as Error).message,
       };
     }
+  }
+
+  async estimateCost(input: ProviderInput): Promise<CostEstimate> {
+    const opPricing = (pricing as PricingTable)[input.operation];
+    if (!opPricing) {
+      return { costUsd: 0, currency: 'USD' };
+    }
+    const entry = opPricing[Object.keys(opPricing)[0]];
+    return {
+      costUsd: entry?.input.perUnit ?? 0.001,
+      currency: 'USD',
+      estimatedDurationMs: entry?.expectedDurationMs,
+    };
   }
 
   async execute(input: ProviderInput): Promise<ProviderOutput> {
@@ -124,7 +242,11 @@ export class GoogleProvider extends MediaProvider {
       },
     });
 
-    const document = (response as any).document;
+    const document = (
+      (response as unknown as [{ document: DocumentAIDocument }])[0] ?? {
+        document: {},
+      }
+    ).document;
     let text: string;
 
     if (outputFormat === 'structured_json') {
@@ -136,7 +258,7 @@ export class GoogleProvider extends MediaProvider {
     }
 
     const data = Buffer.from(text);
-    const cost = this.estimateCost('ocr', imageData.length);
+    const costUsd = await this.lookupCost(input);
 
     return {
       data,
@@ -146,7 +268,7 @@ export class GoogleProvider extends MediaProvider {
           : outputFormat === 'structured_json'
             ? 'application/json'
             : 'text/plain',
-      costUsd: cost,
+      costUsd,
       durationMs: Date.now() - startTime,
       metadata: {
         operation: input.operation,
@@ -174,7 +296,11 @@ export class GoogleProvider extends MediaProvider {
       },
     });
 
-    const document = (response as any).document;
+    const document = (
+      (response as unknown as [{ document: DocumentAIDocument }])[0] ?? {
+        document: {},
+      }
+    ).document;
     const tables = this.extractTablesFromDocument(document);
 
     let output: string;
@@ -185,12 +311,12 @@ export class GoogleProvider extends MediaProvider {
     }
 
     const data = Buffer.from(output);
-    const cost = this.estimateCost('form', imageData.length);
+    const costUsd = await this.lookupCost(input);
 
     return {
       data,
       mimeType: outputFormat === 'json' ? 'application/json' : 'text/markdown',
-      costUsd: cost,
+      costUsd,
       durationMs: Date.now() - startTime,
       metadata: {
         operation: input.operation,
@@ -217,16 +343,20 @@ export class GoogleProvider extends MediaProvider {
       },
     });
 
-    const document = (response as any).document;
+    const document = (
+      (response as unknown as [{ document: DocumentAIDocument }])[0] ?? {
+        document: {},
+      }
+    ).document;
     const extractedFields = this.extractFieldsFromDocument(document, fieldSchema);
 
     const data = Buffer.from(JSON.stringify(extractedFields, null, 2));
-    const cost = this.estimateCost('entity', imageData.length);
+    const costUsd = await this.lookupCost(input);
 
     return {
       data,
       mimeType: 'application/json',
-      costUsd: cost,
+      costUsd,
       durationMs: Date.now() - startTime,
       metadata: {
         operation: input.operation,
@@ -247,7 +377,12 @@ export class GoogleProvider extends MediaProvider {
 
     const prompt = this.getDescribePrompt(detailLevel);
 
-    const response = await (client.predict as any)({
+    const response = await (
+      client.predict as unknown as (req: {
+        endpoint: string;
+        instances: Array<{ content: string; mimeType: string; prompt: string }>;
+      }) => Promise<{ predictions?: Array<{ content?: string }> }>
+    )({
       endpoint: model,
       instances: [
         {
@@ -259,12 +394,12 @@ export class GoogleProvider extends MediaProvider {
     });
 
     const description = response.predictions?.[0]?.content || '';
-    const cost = this.estimateCost('vision', imageData.length);
+    const costUsd = await this.lookupCost(input);
 
     return {
       data: Buffer.from(description),
       mimeType: 'text/plain',
-      costUsd: cost,
+      costUsd,
       durationMs: Date.now() - startTime,
       metadata: {
         operation: input.operation,
@@ -274,7 +409,7 @@ export class GoogleProvider extends MediaProvider {
     };
   }
 
-  private formatAsMarkdown(document: any): string {
+  private formatAsMarkdown(document: DocumentAIDocument): string {
     // Simple markdown formatting of document text
     let markdown = '';
     for (const page of document.pages || []) {
@@ -282,7 +417,7 @@ export class GoogleProvider extends MediaProvider {
         for (const paragraph of block.paragraphs || []) {
           for (const word of paragraph.words || []) {
             for (const symbol of word.symbols || []) {
-              markdown += symbol.text;
+              markdown += symbol.text ?? '';
             }
             markdown += ' ';
           }
@@ -294,25 +429,25 @@ export class GoogleProvider extends MediaProvider {
     return markdown.trim();
   }
 
-  private extractTablesFromDocument(document: any): any[] {
-    const tables: any[] = [];
+  private extractTablesFromDocument(document: DocumentAIDocument): DocumentAITableData[] {
+    const tables: DocumentAITableData[] = [];
     for (const page of document.pages || []) {
       for (const table of page.tables || []) {
-        const tableData = {
-          headers: [] as string[],
-          rows: [] as string[][],
+        const tableData: DocumentAITableData = {
+          headers: [],
+          rows: [],
         };
 
         // Extract header row
         if (table.headerRows?.[0]) {
           tableData.headers = table.headerRows[0].cells.map(
-            (cell: any) => cell.layout?.textAnchor?.text || '',
+            (cell) => cell.layout?.textAnchor?.text || '',
           );
         }
 
         // Extract data rows
         for (const row of table.bodyRows || []) {
-          const rowData = row.cells.map((cell: any) => cell.layout?.textAnchor?.text || '');
+          const rowData = row.cells.map((cell) => cell.layout?.textAnchor?.text || '');
           tableData.rows.push(rowData);
         }
 
@@ -322,7 +457,7 @@ export class GoogleProvider extends MediaProvider {
     return tables;
   }
 
-  private tableToMarkdown(table: any): string {
+  private tableToMarkdown(table: DocumentAITableData): string {
     let md = `| ${table.headers.join(' | ')} |\n`;
     md += `| ${table.headers.map(() => '---').join(' | ')} |\n`;
 
@@ -334,7 +469,7 @@ export class GoogleProvider extends MediaProvider {
   }
 
   private extractFieldsFromDocument(
-    document: any,
+    document: DocumentAIDocument,
     schema: Record<string, string>,
   ): Record<string, unknown> {
     const extracted: Record<string, unknown> = {};
@@ -361,7 +496,7 @@ export class GoogleProvider extends MediaProvider {
     return extracted;
   }
 
-  private convertType(value: string, type: string): any {
+  private convertType(value: string, type: string): string | number | boolean {
     switch (type) {
       case 'number':
         return Number.parseFloat(value) || 0;
@@ -385,14 +520,8 @@ export class GoogleProvider extends MediaProvider {
     return prompts[detailLevel] || prompts.detailed;
   }
 
-  private estimateCost(type: string, _bytes: number): number {
-    const costs: Record<string, number> = {
-      ocr: 0.001, // Per page
-      form: 0.01, // Per page
-      entity: 0.01, // Per page
-      vision: 0.0025, // Per image
-    };
-    return costs[type] || 0.001;
+  private async lookupCost(input: ProviderInput): Promise<number> {
+    return (await this.estimateCost(input)).costUsd;
   }
 
   protected isNonRetryableError(error: Error): boolean {

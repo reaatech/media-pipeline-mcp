@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-pipeline",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Pipeline operations — template management, variable interpolation, validation, and multi-step workflow orchestration",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
@@ -36,12 +36,20 @@
   },
   "dependencies": {
     "@reaatech/media-pipeline-mcp-core": "workspace:*",
+    "@reaatech/media-pipeline-mcp-provider-core": "workspace:*",
     "@reaatech/media-pipeline-mcp-storage": "workspace:*",
     "uuid": "^9.0.0"
+  },
+  "peerDependencies": {
+    "sharp": "^0.34.0"
+  },
+  "peerDependenciesMeta": {
+    "sharp": { "optional": true }
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/uuid": "^9.0.0",
+    "sharp": "^0.34.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"

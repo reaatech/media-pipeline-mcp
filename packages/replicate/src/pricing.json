@@ -1,0 +1,38 @@
+{
+  "image.upscale": {
+    "nightmareai/real-esrgan": {
+      "input": { "perUnit": 0.005 },
+      "expectedDurationMs": 10000
+    }
+  },
+  "image.remove_background": {
+    "briaai/rmbg-1.4": {
+      "input": { "perUnit": 0.003 },
+      "expectedDurationMs": 5000
+    }
+  },
+  "image.inpaint": {
+    "stability-ai/stable-inpainting": {
+      "input": { "perUnit": 0.01 },
+      "expectedDurationMs": 8000
+    }
+  },
+  "audio.isolate": {
+    "cwqkwg/demucs": {
+      "input": { "perUnit": 0.01 },
+      "expectedDurationMs": 15000
+    }
+  },
+  "video.generate": {
+    "kling-video": {
+      "input": { "perUnit": 0.1 },
+      "expectedDurationMs": 30000
+    }
+  },
+  "video.image_to_video": {
+    "kling-i2v": {
+      "input": { "perUnit": 0.08 },
+      "expectedDurationMs": 25000
+    }
+  }
+}
