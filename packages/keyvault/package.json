@@ -1,6 +1,21 @@
 {
   "name": "@reaatech/media-pipeline-mcp-keyvault",
   "version": "0.3.0",
+  "description": "Multi-tenant API key vault — AWS Secrets Manager, GCP Secret Manager, environment variables, in-memory backends",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/media-pipeline-mcp.git",
+    "directory": "packages/keyvault"
+  },
+  "homepage": "https://github.com/reaatech/media-pipeline-mcp/tree/main/packages/keyvault#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
