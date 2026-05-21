@@ -1,6 +1,6 @@
 import { type Counter, type Gauge, type Histogram, ValueType } from '@opentelemetry/api';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import type { ObservabilityConfig } from './observability-service.js';
@@ -16,7 +16,7 @@ export class MetricsService {
   private providerErrorRateGauge?: Gauge;
 
   constructor(config: ObservabilityConfig) {
-    const resource = new Resource({
+    const resource = resourceFromAttributes({
       [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
       [SemanticResourceAttributes.SERVICE_VERSION]: config.serviceVersion,
     });

@@ -1,7 +1,7 @@
 import { type Span, SpanStatusCode, context, trace } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import * as opentelemetry from '@opentelemetry/sdk-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import type { ObservabilityConfig } from './observability-service.js';
@@ -11,7 +11,7 @@ export class TracerService {
   private tracer = trace.getTracer('media-pipeline-mcp');
 
   constructor(config: ObservabilityConfig) {
-    const resource = new Resource({
+    const resource = resourceFromAttributes({
       [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
       [SemanticResourceAttributes.SERVICE_VERSION]: config.serviceVersion,
     });
