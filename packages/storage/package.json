@@ -1,36 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-storage",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1032.0",
-    "@aws-sdk/s3-request-presigner": "^3.1032.0",
-    "@google-cloud/storage": "^7.19.0",
-    "@reaatech/media-pipeline-mcp": "workspace:*",
-    "@smithy/protocol-http": "^5.3.14",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "@types/node": "^20.19.39",
-    "@vitest/coverage-v8": "4.1.6",
-    "vitest": "4.1.6"
-  },
+  "version": "0.3.0",
   "description": "Storage abstraction layer for media artifact persistence across local filesystem, AWS S3, and Google Cloud Storage",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
@@ -43,8 +13,39 @@
   "bugs": {
     "url": "https://github.com/reaatech/media-pipeline-mcp/issues"
   },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist"]
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0",
+    "@aws-sdk/s3-request-presigner": "^3.1032.0",
+    "@google-cloud/storage": "^7.19.0",
+    "@reaatech/media-pipeline-mcp-core": "workspace:*",
+    "@smithy/protocol-http": "^5.3.14",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
 }

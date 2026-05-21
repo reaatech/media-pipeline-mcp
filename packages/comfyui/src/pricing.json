@@ -1,0 +1,17 @@
+{
+  "text.complete": {
+    "expectedDurationMs": 0
+  },
+  "embedding.generate": {
+    "expectedDurationMs": 0
+  },
+  "image.generate": {
+    "expectedDurationMs": 60000
+  },
+  "image.edit": {
+    "expectedDurationMs": 60000
+  },
+  "video.generate": {
+    "expectedDurationMs": 180000
+  }
+}

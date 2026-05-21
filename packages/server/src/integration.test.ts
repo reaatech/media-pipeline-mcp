@@ -20,7 +20,10 @@ vi.mock('@reaatech/media-pipeline-mcp-storage', () => ({
 describe('MCPServer Integration', () => {
   let server: MCPServer;
 
-  const config: ServerConfig = {
+  // Parsed by ServerConfigSchema in production; cast here because the schema
+  // adds many defaulted fields the test doesn't care about (cors, security,
+  // rateLimit, features, etc.).
+  const config = {
     port: 8080,
     logLevel: 'info',
     storage: {
@@ -30,7 +33,7 @@ describe('MCPServer Integration', () => {
       },
     },
     providers: [],
-  };
+  } as unknown as ServerConfig;
 
   beforeEach(() => {
     server = new MCPServer(config);
@@ -89,9 +92,9 @@ describe('MCPServer Integration', () => {
       const videoTools = toolRegistry.getToolsByCategory('video');
       const documentTools = toolRegistry.getToolsByCategory('document');
 
-      expect(imageTools.length).toBe(10);
-      expect(audioTools.length).toBe(6);
-      expect(videoTools.length).toBe(4);
+      expect(imageTools.length).toBe(11);
+      expect(audioTools.length).toBe(7);
+      expect(videoTools.length).toBe(5);
       expect(documentTools.length).toBe(4);
     });
   });

@@ -1,0 +1,44 @@
+{
+  "name": "@reaatech/media-pipeline-mcp-provenance",
+  "version": "0.3.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs --sourcemap",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reaatech/media-pipeline-mcp-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "c2pa-node": "^0.5.0",
+    "@aws-sdk/client-kms": "^3.0.0",
+    "@google-cloud/kms": "^4.0.0",
+    "@azure/keyvault-keys": "^4.0.0",
+    "@azure/identity": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "c2pa-node": { "optional": true },
+    "@aws-sdk/client-kms": { "optional": true },
+    "@google-cloud/kms": { "optional": true },
+    "@azure/keyvault-keys": { "optional": true },
+    "@azure/identity": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

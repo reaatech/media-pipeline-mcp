@@ -1,0 +1,16 @@
+{
+  "image.generate": {
+    "sd3": {
+      "input": { "perUnit": 0.007 },
+      "expectedDurationMs": 3000
+    },
+    "sdxl": {
+      "input": { "perUnit": 0.009 },
+      "expectedDurationMs": 4000
+    },
+    "stable-diffusion-v1-5": {
+      "input": { "perUnit": 0.004 },
+      "expectedDurationMs": 2000
+    }
+  }
+}

@@ -102,7 +102,7 @@ export class LocalStorage implements ArtifactStore {
     const metaPath = `${filePath}.meta.json`;
 
     // Read metadata
-    let meta: ArtifactMeta | undefined;
+    let meta: ArtifactMeta;
     try {
       const metaContent = await fs.readFile(metaPath, 'utf-8');
       meta = JSON.parse(metaContent);
@@ -119,7 +119,7 @@ export class LocalStorage implements ArtifactStore {
 
     const data = createReadStream(filePath);
 
-    return { data, meta: meta! };
+    return { data, meta };
   }
 
   async getSignedUrl(id: string, expiresIn = 3600): Promise<string> {

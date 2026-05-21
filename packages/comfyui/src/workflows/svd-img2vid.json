@@ -1,0 +1,61 @@
+{
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": -1,
+      "steps": 20,
+      "cfg": 2.5,
+      "sampler_name": "euler",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": ["15", 0],
+      "positive": ["12", 0],
+      "negative": ["12", 1],
+      "latent_image": ["12", 2]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["15", 2]
+    }
+  },
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    }
+  },
+  "12": {
+    "class_type": "SVD_img2vid_Conditioning",
+    "inputs": {
+      "width": 1024,
+      "height": 576,
+      "video_frames": 14,
+      "motion_bucket_id": 127,
+      "fps": 6,
+      "augmentation_level": 0,
+      "clip_vision": ["15", 1],
+      "init_image": ["10", 0],
+      "vae": ["15", 2]
+    }
+  },
+  "15": {
+    "class_type": "ImageOnlyCheckpointLoader",
+    "inputs": {
+      "ckpt_name": "svd_xt.safetensors"
+    }
+  },
+  "20": {
+    "class_type": "SaveAnimatedWEBP",
+    "inputs": {
+      "filename_prefix": "SVD",
+      "fps": 6,
+      "lossless": false,
+      "quality": 90,
+      "method": "default",
+      "images": ["8", 0]
+    }
+  }
+}

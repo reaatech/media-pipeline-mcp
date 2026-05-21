@@ -1,4 +1,6 @@
 packages:
   - 'packages/*'
-  - 'packages/providers/*'
-  - 'packages/operations/*'
+
+peerDependencyRules:
+  allowedVersions:
+    '@opentelemetry/api': '^1.9.0'

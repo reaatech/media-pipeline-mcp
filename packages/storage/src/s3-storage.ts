@@ -1,10 +1,11 @@
+import type { S3Client } from '@aws-sdk/client-s3';
 import type { ArtifactMeta, ArtifactStore, S3StorageConfig, StorageResult } from './types.js';
 
 export class S3Storage implements ArtifactStore {
   private bucket: string;
   private region: string;
   private prefix: string;
-  private s3Client: unknown;
+  private s3Client: S3Client | null = null;
   private initialized = false;
   private config: S3StorageConfig;
 
@@ -15,7 +16,7 @@ export class S3Storage implements ArtifactStore {
     this.prefix = config.prefix || '';
   }
 
-  private async getClient(): Promise<any> {
+  private async getClient(): Promise<S3Client> {
     if (!this.initialized) {
       const { S3Client } = await import('@aws-sdk/client-s3');
       const clientConfig: Record<string, unknown> = { region: this.region };
@@ -32,7 +33,7 @@ export class S3Storage implements ArtifactStore {
       this.s3Client = new S3Client(clientConfig);
       this.initialized = true;
     }
-    return this.s3Client;
+    return this.s3Client as S3Client;
   }
 
   private getKey(id: string): string {
@@ -42,12 +43,12 @@ export class S3Storage implements ArtifactStore {
     return this.prefix ? `${this.prefix}${id}` : id;
   }
 
-  async put(id: string, data: Buffer | ReadableStream, meta: ArtifactMeta): Promise<string> {
+  async put(id: string, data: Buffer | NodeJS.ReadableStream, meta: ArtifactMeta): Promise<string> {
     const client = await this.getClient();
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
 
     const key = this.getKey(id);
-    const buffer = Buffer.isBuffer(data) ? data : await this.streamToBuffer(data as ReadableStream);
+    const buffer = Buffer.isBuffer(data) ? data : await this.streamToBuffer(data);
 
     await client.send(
       new PutObjectCommand({
@@ -95,8 +96,9 @@ export class S3Storage implements ArtifactStore {
         data: response.Body as Buffer | ReadableStream,
         meta,
       };
-    } catch (error: any) {
-      if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
+    } catch (error) {
+      const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
         throw new Error(`Artifact not found: ${id}`, { cause: error });
       }
       throw error;
@@ -156,8 +158,10 @@ export class S3Storage implements ArtifactStore {
       const id = this.prefix ? key.substring(this.prefix.length) : key;
 
       // Try to extract metadata from the object if it was stored with metadata
-      const storedMeta = object.Metadata?.artifacttype;
-      const storedMimeType = object.Metadata?.mimetype;
+      const storedMeta = (object as unknown as { Metadata?: Record<string, string> }).Metadata
+        ?.artifacttype;
+      const storedMimeType = (object as unknown as { Metadata?: Record<string, string> }).Metadata
+        ?.mimetype;
 
       metas.push({
         id,
@@ -239,7 +243,7 @@ export class S3Storage implements ArtifactStore {
     return 'application/octet-stream';
   }
 
-  private async streamToBuffer(stream: ReadableStream): Promise<Buffer> {
+  private async streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     const chunks: Uint8Array[] = [];
 
     const nodeStream = stream as unknown as NodeJS.ReadableStream;

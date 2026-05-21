@@ -11,7 +11,7 @@ describe('ToolRegistry', () => {
   describe('tool registration', () => {
     it('should register image generation tools', () => {
       const tools = registry.getToolsByCategory('image');
-      expect(tools).toHaveLength(10);
+      expect(tools).toHaveLength(11);
 
       const toolNames = tools.map((t) => t.name);
       expect(toolNames).toContain('image.generate');
@@ -24,15 +24,17 @@ describe('ToolRegistry', () => {
       expect(toolNames).toContain('image.resize');
       expect(toolNames).toContain('image.crop');
       expect(toolNames).toContain('image.composite');
+      expect(toolNames).toContain('mesh.generate');
     });
 
     it('should register audio tools', () => {
       const tools = registry.getToolsByCategory('audio');
-      expect(tools).toHaveLength(6);
+      expect(tools).toHaveLength(7);
 
       const toolNames = tools.map((t) => t.name);
       expect(toolNames).toContain('audio.tts');
       expect(toolNames).toContain('audio.stt');
+      expect(toolNames).toContain('audio.transcribeStream');
       expect(toolNames).toContain('audio.diarize');
       expect(toolNames).toContain('audio.isolate');
       expect(toolNames).toContain('audio.music');
@@ -41,10 +43,11 @@ describe('ToolRegistry', () => {
 
     it('should register video tools', () => {
       const tools = registry.getToolsByCategory('video');
-      expect(tools).toHaveLength(4);
+      expect(tools).toHaveLength(5);
 
       const toolNames = tools.map((t) => t.name);
       expect(toolNames).toContain('video.generate');
+      expect(toolNames).toContain('video.subtitle');
       expect(toolNames).toContain('video.image_to_video');
       expect(toolNames).toContain('video.extract_frames');
       expect(toolNames).toContain('video.extract_audio');
@@ -187,7 +190,7 @@ describe('toolRegistry singleton', () => {
 
   it('should have all tools registered', () => {
     const tools = toolRegistry.getAllTools();
-    // Should have at least 22 tools (9 image + 4 audio + 4 video + 4 document + 1 cost)
-    expect(tools.length).toBeGreaterThanOrEqual(22);
+    // Should have at least 24 tools
+    expect(tools.length).toBeGreaterThanOrEqual(24);
   });
 });

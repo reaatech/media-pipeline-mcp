@@ -40,6 +40,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+# Runtime audit/debug logs written by the security package and CLI server
+logs/
+**/logs/
 
 # Testing
 .tmp/
@@ -66,3 +69,6 @@ sbom.json
 # Docker
 docker-compose.override.yml
 !*.DS_Store
+
+# Turborepo
+.turbo/

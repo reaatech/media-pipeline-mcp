@@ -1,4 +1,4 @@
-import type { Provider } from '@reaatech/media-pipeline-mcp';
+import type { Provider } from '@reaatech/media-pipeline-mcp-core';
 
 export interface ProviderHealthStatus {
   name: string;

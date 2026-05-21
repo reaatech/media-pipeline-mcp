@@ -1,10 +1,15 @@
-import type { Provider } from '@reaatech/media-pipeline-mcp';
-import { MockProvider } from '@reaatech/media-pipeline-mcp';
 import { AnthropicProvider } from '@reaatech/media-pipeline-mcp-anthropic';
+import { ComfyUIProvider } from '@reaatech/media-pipeline-mcp-comfyui';
+import type { Provider } from '@reaatech/media-pipeline-mcp-core';
+import { MockProvider } from '@reaatech/media-pipeline-mcp-core';
 import { DeepgramProvider } from '@reaatech/media-pipeline-mcp-deepgram';
 import { ElevenLabsProvider } from '@reaatech/media-pipeline-mcp-elevenlabs';
 import { FalProvider } from '@reaatech/media-pipeline-mcp-fal';
 import { GoogleProvider } from '@reaatech/media-pipeline-mcp-google';
+import type { KeyVault } from '@reaatech/media-pipeline-mcp-keyvault';
+import { LumaProvider } from '@reaatech/media-pipeline-mcp-luma';
+import { MeshyProvider } from '@reaatech/media-pipeline-mcp-meshy';
+import { OllamaProvider } from '@reaatech/media-pipeline-mcp-ollama';
 import { OpenAIProvider } from '@reaatech/media-pipeline-mcp-openai';
 import { ReplicateProvider } from '@reaatech/media-pipeline-mcp-replicate';
 import { StabilityProvider } from '@reaatech/media-pipeline-mcp-stability';
@@ -61,9 +66,18 @@ const providerRegistry: Record<string, ProviderInfo> = {
     configKey: 'apiKey',
   },
   google: { ctor: GoogleProvider as unknown as MediaProviderConstructor },
+  meshy: { ctor: MeshyProvider as unknown as MediaProviderConstructor, configKey: 'apiKey' },
+  luma: { ctor: LumaProvider as unknown as MediaProviderConstructor, configKey: 'apiKey' },
+  // F10 local models — no API key required. `configKey` is omitted so the factory
+  // skips the env-var/keyVault lookup and passes the inline config (baseUrl, etc.) directly.
+  ollama: { ctor: OllamaProvider as unknown as MediaProviderConstructor },
+  comfyui: { ctor: ComfyUIProvider as unknown as MediaProviderConstructor },
 };
 
-export function createProvider(config: ProviderConfig): Provider | null {
+export async function createProvider(
+  config: ProviderConfig,
+  keyVault?: KeyVault,
+): Promise<Provider | null> {
   const { name, operations, config: providerConfig = {} } = config;
 
   if (name.toLowerCase() === 'mock') {
@@ -84,12 +98,19 @@ export function createProvider(config: ProviderConfig): Provider | null {
   let resolvedConfig: Record<string, unknown> = { ...providerConfig };
 
   if (providerInfo.configKey) {
-    const envKey = `${name.toUpperCase()}_API_KEY`;
-    const apiKey =
-      (providerConfig[providerInfo.configKey] as string) || (process.env[envKey] as string);
+    const keyName = `${name.toUpperCase()}_API_KEY`;
+    let apiKey = providerConfig[providerInfo.configKey] as string | undefined;
+
+    if (!apiKey && keyVault) {
+      apiKey = (await keyVault.get('default', keyName)) ?? undefined;
+    }
 
     if (!apiKey) {
-      console.warn(`${name} provider configured but ${envKey} not set`);
+      apiKey = process.env[keyName] as string;
+    }
+
+    if (!apiKey) {
+      console.warn(`${name} provider configured but ${keyName} not set`);
       return null;
     }
 
@@ -101,11 +122,28 @@ export function createProvider(config: ProviderConfig): Provider | null {
 
   try {
     const mediaProvider = new providerInfo.ctor(resolvedConfig);
+    // MediaProvider subclasses expose estimateCost; mock providers and minimal stubs may not.
+    // Optional chain: only thread it through if present so the adapter's fallback path applies.
+    const mediaAny = mediaProvider as unknown as {
+      estimateCost?: (input: {
+        operation: string;
+        params: Record<string, unknown>;
+        config: Record<string, unknown>;
+      }) => Promise<{ costUsd: number; estimatedDurationMs?: number; currency?: string }>;
+    };
     return new ProviderAdapter({
       name: mediaProvider.name,
       supportedOperations: mediaProvider.supportedOperations,
       execute: (operation, params, config) => mediaProvider.execute(operation, params, config),
       healthCheck: () => mediaProvider.healthCheck(),
+      estimateCost: mediaAny.estimateCost
+        ? async (input) => {
+            const fn = mediaAny.estimateCost;
+            if (!fn) throw new Error('estimateCost unavailable');
+            const est = await fn(input);
+            return { costUsd: est.costUsd, estimatedDurationMs: est.estimatedDurationMs };
+          }
+        : undefined,
     });
   } catch (error) {
     console.warn(`Failed to create ${name} provider: ${error}`);
@@ -113,11 +151,14 @@ export function createProvider(config: ProviderConfig): Provider | null {
   }
 }
 
-export function createProviders(configs: ProviderConfig[]): Provider[] {
+export async function createProviders(
+  configs: ProviderConfig[],
+  keyVault?: KeyVault,
+): Promise<Provider[]> {
   const providers: Provider[] = [];
 
   for (const config of configs) {
-    const provider = createProvider(config);
+    const provider = await createProvider(config, keyVault);
     if (provider) {
       providers.push(provider);
     }
@@ -152,10 +193,12 @@ export function createProviders(configs: ProviderConfig[]): Provider[] {
           'video.image_to_video',
           'video.extract_frames',
           'video.extract_audio',
+          'video.subtitle',
           'document.ocr',
           'document.extract_tables',
           'document.extract_fields',
           'document.summarize',
+          'mesh.generate',
         ],
         delay: 100,
         baseCost: 0.001,

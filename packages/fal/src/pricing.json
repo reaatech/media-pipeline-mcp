@@ -1,0 +1,32 @@
+{
+  "image.generate": {
+    "fal-ai/fast-flux-pro": {
+      "input": { "perUnit": 0.008 },
+      "expectedDurationMs": 5000
+    }
+  },
+  "image.upscale": {
+    "fal-ai/real-esrgan": {
+      "input": { "perUnit": 0.004 },
+      "expectedDurationMs": 8000
+    }
+  },
+  "image.remove_background": {
+    "fal-ai/background-removal": {
+      "input": { "perUnit": 0.002 },
+      "expectedDurationMs": 4000
+    }
+  },
+  "video.generate": {
+    "fal-ai/kling-video/v1/prod/text-to-video": {
+      "input": { "perUnit": 0.12 },
+      "expectedDurationMs": 60000
+    }
+  },
+  "video.image_to_video": {
+    "fal-ai/kling-video/v1/prod/image-to-video": {
+      "input": { "perUnit": 0.1 },
+      "expectedDurationMs": 60000
+    }
+  }
+}

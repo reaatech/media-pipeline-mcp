@@ -1,7 +1,12 @@
-import type { ArtifactType } from '@reaatech/media-pipeline-mcp';
+import type { ArtifactType } from '@reaatech/media-pipeline-mcp-core';
 
 export interface ArtifactMeta {
-  id: string;
+  /**
+   * Optional. The artifact id is passed as the first parameter to put()/get();
+   * including it in meta is redundant. Kept for backwards compatibility with
+   * callers that already plumb it through.
+   */
+  id?: string;
   type: ArtifactType;
   mimeType: string;
   size?: number;

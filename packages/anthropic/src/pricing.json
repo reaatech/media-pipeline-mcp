@@ -1,0 +1,42 @@
+{
+  "image.describe": {
+    "claude-sonnet-4-20250514": {
+      "input": { "perUnit": 3.0, "unit": "1M tokens" },
+      "output": { "perUnit": 15.0, "unit": "1M tokens" },
+      "expectedDurationMs": 3000
+    },
+    "claude-3-5-sonnet-20241022": {
+      "input": { "perUnit": 3.0, "unit": "1M tokens" },
+      "output": { "perUnit": 15.0, "unit": "1M tokens" },
+      "expectedDurationMs": 3000
+    }
+  },
+  "document.ocr": {
+    "claude-sonnet-4-20250514": {
+      "input": { "perUnit": 3.0, "unit": "1M tokens" },
+      "output": { "perUnit": 15.0, "unit": "1M tokens" },
+      "expectedDurationMs": 5000
+    }
+  },
+  "document.extract_tables": {
+    "claude-sonnet-4-20250514": {
+      "input": { "perUnit": 3.0, "unit": "1M tokens" },
+      "output": { "perUnit": 15.0, "unit": "1M tokens" },
+      "expectedDurationMs": 5000
+    }
+  },
+  "document.extract_fields": {
+    "claude-sonnet-4-20250514": {
+      "input": { "perUnit": 3.0, "unit": "1M tokens" },
+      "output": { "perUnit": 15.0, "unit": "1M tokens" },
+      "expectedDurationMs": 5000
+    }
+  },
+  "document.summarize": {
+    "claude-sonnet-4-20250514": {
+      "input": { "perUnit": 3.0, "unit": "1M tokens" },
+      "output": { "perUnit": 15.0, "unit": "1M tokens" },
+      "expectedDurationMs": 4000
+    }
+  }
+}

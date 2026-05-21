@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StructuredLogger } from './structured-logger';
+import { StructuredLogger } from './structured-logger.js';
 
 describe('StructuredLogger', () => {
   let logger: StructuredLogger;
@@ -107,5 +107,13 @@ describe('StructuredLogger', () => {
     expect(parsed.pipelineId).toBe('pipe-123');
 
     consoleSpy.mockRestore();
+  });
+});
+
+describe('index exports', () => {
+  it('should export all expected symbols', async () => {
+    const mod = await import('./index.js');
+    const keys = Object.keys(mod);
+    expect(keys.length).toBeGreaterThan(0);
   });
 });

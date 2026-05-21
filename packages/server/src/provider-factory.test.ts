@@ -40,10 +40,10 @@ describe('createProvider', () => {
     ctorSpy.mockReset();
   });
 
-  it('should inject API keys for providers that require them', () => {
+  it('should inject API keys for providers that require them', async () => {
     process.env.OPENAI_API_KEY = 'openai-key';
 
-    const provider = createProvider({
+    const provider = await createProvider({
       name: 'openai',
       operations: ['image.generate'],
     });
@@ -54,8 +54,8 @@ describe('createProvider', () => {
     process.env.OPENAI_API_KEY = undefined;
   });
 
-  it('should create google provider without requiring GOOGLE_API_KEY', () => {
-    const provider = createProvider({
+  it('should create google provider without requiring GOOGLE_API_KEY', async () => {
+    const provider = await createProvider({
       name: 'google',
       operations: ['document.ocr'],
       config: { projectId: 'test-project' },

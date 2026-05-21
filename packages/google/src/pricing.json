@@ -1,0 +1,27 @@
+{
+  "document.ocr": {
+    "default": {
+      "input": { "perUnit": 0.001, "unit": "per page" },
+      "expectedDurationMs": 3000
+    }
+  },
+  "document.extract_tables": {
+    "form-parser": {
+      "input": { "perUnit": 0.01, "unit": "per page" },
+      "expectedDurationMs": 4000
+    }
+  },
+  "document.extract_fields": {
+    "entity-extractor": {
+      "input": { "perUnit": 0.01, "unit": "per page" },
+      "expectedDurationMs": 4000
+    }
+  },
+  "image.describe": {
+    "gemini-1.5-pro": {
+      "input": { "perUnit": 0.0025, "unit": "per image" },
+      "output": { "perUnit": 0.01, "unit": "1K tokens" },
+      "expectedDurationMs": 3000
+    }
+  }
+}

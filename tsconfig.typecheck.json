@@ -3,30 +3,33 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@reaatech/media-pipeline-mcp": ["./packages/core/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-core": ["./packages/core/src/index.ts"],
       "@reaatech/media-pipeline-mcp-storage": ["./packages/storage/src/index.ts"],
       "@reaatech/media-pipeline-mcp-server": ["./packages/server/src/index.ts"],
       "@reaatech/media-pipeline-mcp-security": ["./packages/security/src/index.ts"],
       "@reaatech/media-pipeline-mcp-resilience": ["./packages/resilience/src/index.ts"],
       "@reaatech/media-pipeline-mcp-observability": ["./packages/observability/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-provider-core": [
-        "./packages/providers/provider-core/src/index.ts"
-      ],
-      "@reaatech/media-pipeline-mcp-openai": ["./packages/providers/openai/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-stability": ["./packages/providers/stability/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-replicate": ["./packages/providers/replicate/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-fal": ["./packages/providers/fal/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-elevenlabs": ["./packages/providers/elevenlabs/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-deepgram": ["./packages/providers/deepgram/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-anthropic": ["./packages/providers/anthropic/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-google": ["./packages/providers/google/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-pipeline": ["./packages/operations/pipeline/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-image-edit": ["./packages/operations/image-edit/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-video-gen": ["./packages/operations/video-gen/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-audio-gen": ["./packages/operations/audio-gen/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-doc-extraction": [
-        "./packages/operations/doc-extraction/src/index.ts"
-      ]
+      "@reaatech/media-pipeline-mcp-provider-core": ["./packages/provider-core/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-openai": ["./packages/openai/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-stability": ["./packages/stability/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-replicate": ["./packages/replicate/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-fal": ["./packages/fal/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-elevenlabs": ["./packages/elevenlabs/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-deepgram": ["./packages/deepgram/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-anthropic": ["./packages/anthropic/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-google": ["./packages/google/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-pipeline": ["./packages/pipeline/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-image-edit": ["./packages/image-edit/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-video-gen": ["./packages/video-gen/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-audio-gen": ["./packages/audio-gen/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-doc-extraction": ["./packages/doc-extraction/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-persistence": ["./packages/persistence/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-cost": ["./packages/cost/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-provenance": ["./packages/provenance/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-keyvault": ["./packages/keyvault/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-meshy": ["./packages/meshy/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-luma": ["./packages/luma/src/index.ts"]
     }
-  }
+  },
+  "include": ["packages/*/src/**/*"]
 }

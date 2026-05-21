@@ -493,6 +493,138 @@ export class ToolRegistry {
       },
     });
 
+    this.registerTool({
+      name: 'video.subtitle',
+      description: 'Generate subtitles for a video using STT, with optional burn-in',
+      category: 'video',
+      operations: ['video.subtitle'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          artifactId: { type: 'string', description: 'ID of the video artifact' },
+          language: {
+            type: 'string',
+            description: 'Language code (e.g., "en", "es")',
+            default: 'en',
+          },
+          format: {
+            type: 'string',
+            description: 'Subtitle format',
+            enum: ['srt', 'vtt', 'ass'],
+            default: 'srt',
+          },
+          sttProvider: { type: 'string', description: 'STT provider override' },
+          sttModel: { type: 'string', description: 'STT model override' },
+          burnIn: {
+            type: 'object',
+            description: 'Burn subtitles into video',
+            properties: {
+              font: { type: 'string', description: 'Font name' },
+              fontSize: { type: 'number', description: 'Font size' },
+              fontColor: { type: 'string', description: 'Font color (hex)' },
+              position: { type: 'string', enum: ['top', 'middle', 'bottom'], default: 'bottom' },
+            },
+          },
+          diarize: { type: 'boolean', description: 'Enable speaker diarization', default: false },
+          translateTo: { type: 'string', description: 'Target language for translation' },
+        },
+        required: ['artifactId'],
+      },
+    });
+
+    // Pipeline resume / cancel
+    this.registerTool({
+      name: 'pipeline.resume',
+      description: 'Resume a gated or failed pipeline by run ID',
+      category: 'pipeline',
+      operations: ['pipeline.resume'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          runId: { type: 'string', description: 'Run ID of the pipeline to resume' },
+          fromStepId: { type: 'string', description: 'Optional step ID to resume from' },
+        },
+        required: ['runId'],
+      },
+    });
+
+    this.registerTool({
+      name: 'pipeline.cancel',
+      description: 'Cancel a running pipeline',
+      category: 'pipeline',
+      operations: ['pipeline.cancel'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          runId: { type: 'string', description: 'Run ID of the pipeline to cancel' },
+          reason: { type: 'string', description: 'Optional reason for cancellation' },
+        },
+        required: ['runId'],
+      },
+    });
+
+    this.registerTool({
+      name: 'pipeline.status',
+      description: 'Check the status of a pipeline run',
+      category: 'pipeline',
+      operations: ['pipeline.status'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          runId: { type: 'string', description: 'Run ID of the pipeline' },
+        },
+        required: ['runId'],
+      },
+    });
+
+    this.registerTool({
+      name: 'pipeline.subscribe',
+      description: 'Subscribe to pipeline events via webhook',
+      category: 'pipeline',
+      operations: ['pipeline.subscribe'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          runId: { type: 'string', description: 'Run ID of the pipeline' },
+          webhookUrl: { type: 'string', description: 'Webhook callback URL' },
+          events: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Event types to subscribe to (e.g., ["step:complete", "pipeline:complete"])',
+          },
+          headers: {
+            type: 'object',
+            description: 'Custom headers to include in webhook requests',
+            additionalProperties: { type: 'string' },
+          },
+        },
+        required: ['runId', 'webhookUrl'],
+      },
+    });
+
+    this.registerTool({
+      name: 'pipeline.estimate',
+      description: 'Estimate the cost and duration of a pipeline definition',
+      category: 'pipeline',
+      operations: ['pipeline.estimate'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pipeline: {
+            type: 'object',
+            description: 'Pipeline definition to estimate',
+            properties: {
+              id: { type: 'string', description: 'Pipeline ID' },
+              steps: { type: 'array', description: 'Pipeline steps' },
+            },
+            required: ['id', 'steps'],
+          },
+        },
+        required: ['pipeline'],
+      },
+    });
+
     // Quality gate evaluation tool
     this.registerTool({
       name: 'quality_gate.evaluate',
@@ -524,6 +656,186 @@ export class ToolRegistry {
           },
         },
         required: ['artifact_id', 'gate'],
+      },
+    });
+
+    // Batch pipeline operations (F15)
+    this.registerTool({
+      name: 'media.pipeline.batch',
+      description: 'Execute a batch of pipeline runs from a CSV, JSONL, or inline data source',
+      category: 'pipeline',
+      operations: [],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pipeline: {
+            type: 'object',
+            description: 'Pipeline definition with {{row.field}} variable interpolation',
+          },
+          source: {
+            type: 'object',
+            description: 'Data source: { type: "csv"|"jsonl"|"inline", rows?, columnMap?, uri? }',
+          },
+          concurrency: {
+            type: 'number',
+            description: 'Max concurrent pipeline executions',
+            default: 1,
+          },
+          onRowFailure: {
+            type: 'string',
+            enum: ['continue', 'stop', 'retry-once'],
+            default: 'continue',
+          },
+          perRunBudget: {
+            type: 'object',
+            description: 'Per-run budget limits: { maxUsd, onExceed }',
+          },
+          artifactTags: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Tags to apply to artifacts',
+          },
+          idempotencyKey: { type: 'string', description: 'Optional idempotency key' },
+        },
+        required: ['pipeline', 'source'],
+      },
+    });
+
+    this.registerTool({
+      name: 'media.pipeline.batch.status',
+      description: 'Check the status of a batch pipeline execution',
+      category: 'pipeline',
+      operations: [],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          batchId: { type: 'string', description: 'Batch ID returned from pipeline.batch' },
+        },
+        required: ['batchId'],
+      },
+    });
+
+    this.registerTool({
+      name: 'media.pipeline.batch.retry',
+      description: 'Retry failed rows in a batch',
+      category: 'pipeline',
+      operations: [],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          batchId: { type: 'string', description: 'Batch ID' },
+          onlyFailed: { type: 'boolean', description: 'Only retry failed rows', default: true },
+          onlyRowIndexes: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Specific row indexes to retry',
+          },
+        },
+        required: ['batchId'],
+      },
+    });
+
+    this.registerTool({
+      name: 'media.pipeline.batch.cancel',
+      description: 'Cancel a running batch pipeline execution',
+      category: 'pipeline',
+      operations: [],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          batchId: { type: 'string', description: 'Batch ID' },
+        },
+        required: ['batchId'],
+      },
+    });
+
+    // F20: Real-time STT streaming
+    this.registerTool({
+      name: 'audio.transcribeStream',
+      description: 'Transcribe audio in real-time from an inline sample or URL',
+      category: 'audio',
+      operations: ['audio.transcribeStream'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'object',
+            description: 'Audio source configuration',
+            properties: {
+              kind: {
+                type: 'string',
+                description: 'Source type',
+                enum: ['inline', 'url', 'mic', 'inline-sample'],
+              },
+              encoding: {
+                type: 'string',
+                description: 'Audio encoding for inline mode',
+                enum: ['linear16', 'opus', 'mulaw'],
+              },
+              sampleRateHz: {
+                type: 'number',
+                description: 'Sample rate in Hz for inline mode',
+              },
+              data: {
+                type: 'string',
+                description: 'Base64-encoded audio data (preferred for inline mode)',
+              },
+              audioData: {
+                type: 'string',
+                description: 'Legacy base64-encoded audio data alias for inline-sample mode',
+              },
+              url: { type: 'string', description: 'Audio URL (for url mode)' },
+            },
+            required: ['kind'],
+          },
+          language: { type: 'string', description: 'Language code (e.g., "en-US")' },
+          model: { type: 'string', description: 'STT model override' },
+          provider: {
+            type: 'string',
+            description: 'STT provider',
+            enum: ['deepgram', 'openai', 'google'],
+          },
+          interim: { type: 'boolean', description: 'Return interim results', default: false },
+          diarize: { type: 'boolean', description: 'Enable speaker diarization', default: false },
+          endpointingMs: { type: 'number', description: 'Endpointing sensitivity in ms' },
+        },
+        required: ['source'],
+      },
+    });
+
+    // F21: 3D mesh generation
+    this.registerTool({
+      name: 'mesh.generate',
+      description: 'Generate a 3D mesh from a text prompt or image',
+      category: 'image',
+      operations: ['mesh.generate'],
+      inputSchema: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'Text description of the 3D model' },
+          sourceArtifactId: { type: 'string', description: 'Reference image artifact ID' },
+          format: {
+            type: 'string',
+            description: 'Output format',
+            enum: ['glb', 'fbx', 'obj', 'usdz', 'ply'],
+            default: 'glb',
+          },
+          polyBudget: { type: 'number', description: 'Target polygon count' },
+          topology: {
+            type: 'string',
+            description: 'Mesh topology',
+            enum: ['quads', 'tris'],
+          },
+          texture: {
+            type: 'object',
+            description: 'Texture configuration',
+            properties: {
+              enabled: { type: 'boolean', default: true },
+              pbr: { type: 'boolean', default: true },
+              resolution: { type: 'number', default: 2048 },
+            },
+          },
+        },
       },
     });
 

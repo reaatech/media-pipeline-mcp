@@ -1,4 +1,4 @@
-import type { Artifact, Provider } from '@reaatech/media-pipeline-mcp';
+import type { Artifact, Provider } from '@reaatech/media-pipeline-mcp-core';
 
 export class ProviderAdapter implements Provider {
   readonly name: string;
@@ -15,6 +15,11 @@ export class ProviderAdapter implements Provider {
     durationMs?: number;
   }>;
   private healthCheckFn: () => Promise<{ healthy: boolean; latency?: number; error?: string }>;
+  private estimateCostFn?: (input: {
+    operation: string;
+    params: Record<string, unknown>;
+    config: Record<string, unknown>;
+  }) => Promise<{ costUsd: number; estimatedDurationMs?: number }>;
 
   constructor(config: {
     name: string;
@@ -31,11 +36,33 @@ export class ProviderAdapter implements Provider {
       durationMs?: number;
     }>;
     healthCheck: () => Promise<{ healthy: boolean; latency?: number; error?: string }>;
+    /** Optional. Wire the underlying MediaProvider.estimateCost so F4 budget preflight
+     *  and F5 dry-run reach real pricing instead of the previous $0.01 fake. */
+    estimateCost?: (input: {
+      operation: string;
+      params: Record<string, unknown>;
+      config: Record<string, unknown>;
+    }) => Promise<{ costUsd: number; estimatedDurationMs?: number }>;
   }) {
     this.name = config.name;
     this.supportedOperations = config.supportedOperations;
     this.executeFn = config.execute;
     this.healthCheckFn = config.healthCheck;
+    this.estimateCostFn = config.estimateCost;
+  }
+
+  async estimateCost(input: {
+    operation: string;
+    params: Record<string, unknown>;
+    config: Record<string, unknown>;
+  }): Promise<{ costUsd: number; estimatedDurationMs?: number }> {
+    if (!this.estimateCostFn) {
+      // Per F4 spec: providers without an estimator skip preflight (best-effort, may
+      // overshoot). Reporting a token cost here lets the executor decide whether to
+      // surface a warning rather than failing.
+      return { costUsd: 0 };
+    }
+    return this.estimateCostFn(input);
   }
 
   async execute(

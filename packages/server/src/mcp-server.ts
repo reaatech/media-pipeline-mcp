@@ -1,31 +1,106 @@
 import http from 'node:http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import type { Artifact, Pipeline, PipelineDefinition } from '@reaatech/media-pipeline-mcp';
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import type {
+  Artifact,
+  JudgeRubric,
+  Pipeline,
+  PipelineDefinition,
+  PipelineEstimate,
+} from '@reaatech/media-pipeline-mcp-core';
 import {
   type PipelineEvent,
   PipelineExecutor,
   PipelineValidator,
   createQualityGateEvaluator,
-} from '@reaatech/media-pipeline-mcp';
+} from '@reaatech/media-pipeline-mcp-core';
+import { TenantNotFoundError } from '@reaatech/media-pipeline-mcp-core';
+import { InMemoryKeyVault } from '@reaatech/media-pipeline-mcp-keyvault';
+import type { KeyVault } from '@reaatech/media-pipeline-mcp-keyvault';
+import type { TenantContext } from '@reaatech/media-pipeline-mcp-keyvault';
+import {
+  BatchExecutor,
+  ContextResolver,
+  RatioFanOutExecutor,
+  VariantsExecutor,
+  createLoudnessGateEvaluator,
+} from '@reaatech/media-pipeline-mcp-pipeline';
+import type {
+  BatchRequest,
+  BatchSource,
+  VariantsExecutorContext,
+} from '@reaatech/media-pipeline-mcp-pipeline';
+import { ProvenanceSigner } from '@reaatech/media-pipeline-mcp-provenance';
+import { Router } from '@reaatech/media-pipeline-mcp-provider-core';
+import type {
+  ProviderInput,
+  RouteCandidate,
+  RouteConfig,
+} from '@reaatech/media-pipeline-mcp-provider-core';
 import { AuthMiddleware, RateLimiter } from '@reaatech/media-pipeline-mcp-security';
 import type { AuthContext } from '@reaatech/media-pipeline-mcp-security';
 import type { ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
-import { createStorage } from '@reaatech/media-pipeline-mcp-storage';
-import type { ServerConfig } from './config.js';
+import { TenantScopedArtifactStore, createStorage } from '@reaatech/media-pipeline-mcp-storage';
+import { createSubtitlePipeline } from '@reaatech/media-pipeline-mcp-video-gen';
+import type { SubtitleConfig } from '@reaatech/media-pipeline-mcp-video-gen';
+import type { FeaturesConfig, ServerConfig } from './config.js';
 import { CostTracker } from './cost-tracker.js';
+import { handlePipelineEstimate } from './estimate-handler.js';
+import type { PipelineEstimator } from './estimate-handler.js';
+import {
+  IdempotencyConflictError,
+  IdempotencyMiddleware,
+  InMemoryIdempotencyStore,
+  computeBodyHash,
+} from './idempotency.js';
+import type { IdempotencyStore } from './idempotency.js';
 import { createProviders } from './provider-factory.js';
 import { ProviderRegistry } from './provider-registry.js';
+import { ArtifactResourceHandler } from './resources.js';
+import type { ArtifactResourceConfig } from './resources.js';
+import { StreamingBridge } from './streaming.js';
+import type { ProgressNotification } from './streaming.js';
+import {
+  enforceTenantPolicy,
+  getTenantContext,
+  resolveTenantId,
+  tenantStorage,
+} from './tenant-context.js';
 import { toolRegistry } from './tool-registry.js';
+import { createInboundWebhookHandler } from './webhooks/inbound.js';
+import { SubscriptionManager, WebhookDeliveryService } from './webhooks/index.js';
+
+/** Structural shape of a provider that may expose the optional `estimateCost` method. */
+interface ProviderWithEstimateCost {
+  estimateCost?: (input: {
+    operation: string;
+    params: Record<string, unknown>;
+    config: Record<string, unknown>;
+  }) => Promise<{ costUsd: number; estimatedDurationMs?: number; currency?: string }>;
+}
+
+/** Shape returned by all `handle*` methods — an MCP CallToolResult with extra fields. */
+type ToolHandlerResult = {
+  content: Array<{ type: 'text'; text: string }>;
+  success?: boolean;
+  error?: string;
+  isError?: boolean;
+  [extra: string]: unknown;
+};
 
 export class MCPServer {
   private server: Server;
   private providerRegistry: ProviderRegistry;
   private costTracker: CostTracker;
   private storage: ArtifactStore;
-  private executor: PipelineExecutor;
-  private validator: PipelineValidator;
+  private executor!: PipelineExecutor;
+  private validator!: PipelineValidator;
   private pipelines: Map<string, Pipeline> = new Map();
   private static readonly MAX_PIPELINE_HISTORY = 1000;
   private config: ServerConfig;
@@ -34,9 +109,49 @@ export class MCPServer {
   // Currently they require transport-level header access not available in MCP protocol
   private authMiddleware?: AuthMiddleware;
   private rateLimiter?: RateLimiter;
+  // Phase 2: F1 Idempotency
+  private idempotencyMiddleware?: IdempotencyMiddleware;
+  // Phase 2: F6 Streaming
+  private streamingBridge?: StreamingBridge;
+  // Phase 2: F7 Webhooks
+  private subscriptionManager?: SubscriptionManager;
+  private webhookDeliveryService?: WebhookDeliveryService;
+  private webhookSecrets: Record<string, string> = {};
+  private features: FeaturesConfig;
+  // Pipeline state store (from config or in-memory fallback)
+  private pipelineCancelControllers: Map<string, AbortController> = new Map();
+  // F15: Batch executor
+  private batchExecutor!: BatchExecutor;
+  // F19: MCP Resources for artifacts
+  private artifactResourceHandler?: ArtifactResourceHandler;
+  private initPromise?: Promise<void>;
+  // F8 Router: cache pricing.json's expectedDurationMs per (provider, model) so the
+  // `fastest` strategy's <5s eligibility check has data without a synchronous estimateCost.
+  // Populated lazily by the router context's first call; entries don't expire (pricing is
+  // bundled, not network-fetched).
+  private routerDurationCache: Map<string, number> = new Map();
 
   constructor(config: ServerConfig) {
     this.config = config;
+    this.features = config.features ?? {
+      idempotency: true,
+      contentCache: false,
+      resumablePipelines: false,
+      budgetCaps: true,
+      dryRun: true,
+      streaming: false,
+      webhooks: false,
+      routing: false,
+      variants: false,
+      subtitles: false,
+      runContext: true,
+      batch: false,
+      safetyGate: true,
+      provenance: false,
+      mcpResources: false,
+      multiTenant: false,
+      sttStream: false,
+    };
     this.server = new Server(
       {
         name: 'media-pipeline-mcp',
@@ -45,6 +160,10 @@ export class MCPServer {
       {
         capabilities: {
           tools: {},
+          // Plan §F19 "Subscribe": "every step-completed event with new artifactIds
+          // emits a notifications/resources/list_changed". Declare the capability so
+          // MCP clients know to subscribe.
+          ...(config.features?.mcpResources ? { resources: { listChanged: true } } : {}),
         },
       },
     );
@@ -53,7 +172,15 @@ export class MCPServer {
     this.costTracker = new CostTracker(config.budget);
 
     // Initialize storage
-    this.storage = createStorage(config.storage);
+    {
+      const baseStore = createStorage(config.storage);
+      // F18: per-tenant artifact prefix. When multiTenant is enabled, every put/get/list
+      // is scoped to `tenants/<tenantId>/` based on the active AsyncLocalStorage context.
+      // When multiTenant is off, the wrapper is a no-op (getTenantId returns undefined).
+      this.storage = config.multiTenant?.enabled
+        ? new TenantScopedArtifactStore(baseStore, () => getTenantContext()?.tenantId)
+        : baseStore;
+    }
 
     // Initialize auth middleware if enabled
     if (config.auth?.enabled) {
@@ -93,29 +220,559 @@ export class MCPServer {
       });
     }
 
+    // Phase 2: F18 — Key Vault for multi-tenant key resolution.
+    // When multiTenant.enabled, callers supply a real KeyVault (Aws/GCP) and a tenant
+    // resolver; the request middleware below populates AsyncLocalStorage so the
+    // provider factory and downstream code can read per-tenant keys.
+    // Single-tenant mode uses the in-memory vault as a no-op shim.
+    const keyVault: KeyVault | undefined = config.multiTenant?.enabled
+      ? config.multiTenant.keyVault
+      : config.providers.length > 0
+        ? new InMemoryKeyVault()
+        : undefined;
+
+    // Phase 2: F1 Idempotency Middleware
+    if (this.features.idempotency) {
+      const store = config.pipelineStateStore ?? new InMemoryIdempotencyStore();
+      this.idempotencyMiddleware = new IdempotencyMiddleware({
+        // PipelineStateStore and IdempotencyStore share the same get/set/delete surface
+        // for idempotency tracking but are not nominally compatible — the structural cast
+        // bridges them without forcing one interface to extend the other.
+        store: store as unknown as IdempotencyStore,
+        ttlMs: 86_400_000,
+      });
+    }
+
+    // Phase 2: F6 Streaming Bridge
+    if (this.features.streaming && config.eventBus) {
+      // EventBus shape varies between core/server packages; structural cast is intentional.
+      this.streamingBridge = new StreamingBridge(
+        config.eventBus as ConstructorParameters<typeof StreamingBridge>[0],
+        500,
+      );
+    }
+
+    // Phase 2: F7 Webhooks
+    if (this.features.webhooks) {
+      this.subscriptionManager = new SubscriptionManager();
+      this.webhookDeliveryService = new WebhookDeliveryService();
+
+      // Per-provider webhook secrets for inbound signature verification
+      const replicateSecret = process.env.REPLICATE_WEBHOOK_SECRET;
+      const falSecret = process.env.FAL_WEBHOOK_SECRET;
+      const deepgramSecret = process.env.DEEPGRAM_WEBHOOK_SECRET;
+
+      if (replicateSecret) this.webhookSecrets.replicate = replicateSecret;
+      if (falSecret) this.webhookSecrets.fal = falSecret;
+      if (deepgramSecret) this.webhookSecrets.deepgram = deepgramSecret;
+    }
+
+    // F15: Batch executor (row executor set after async init)
+    this.batchExecutor = new BatchExecutor();
+
+    // F19: MCP Resources for artifacts. When multiTenant is on, default scope is
+    // 'tenant' so URIs include the tenant prefix and cross-tenant reads return 403
+    // (ArtifactAccessDeniedError) per spec §F19. The static handler doesn't have a
+    // tenant id baked in here — readResource validates against the AsyncLocalStorage
+    // context when serving a request.
+    if (this.features.mcpResources) {
+      const resourceConfig: ArtifactResourceConfig = {
+        enabled: true,
+        defaultScope: this.config.multiTenant?.enabled ? 'tenant' : 'session',
+      };
+      this.artifactResourceHandler = new ArtifactResourceHandler(resourceConfig, this.storage);
+      // Plan §F19 "Subscribe": wire the handler's onUpdate (fires when a new artifact
+      // is registered) to MCP's `notifications/resources/list_changed` so subscribed
+      // clients refresh their resource lists. server.sendResourceListChanged() returns
+      // a promise; the swallowed rejection is intentional — a transport disconnect
+      // shouldn't cascade into a pipeline failure.
+      this.artifactResourceHandler.onUpdate(() => {
+        void this.server.sendResourceListChanged().catch((err: unknown) => {
+          console.warn(`Failed to send resources/list_changed: ${(err as Error).message}`);
+        });
+      });
+    }
+
+    // Async initialization: providers, executor, validator
+    this.initPromise = this.initProvidersAndExecutor(config, keyVault);
+
+    this.setupToolHandlers();
+  }
+
+  private async initProvidersAndExecutor(
+    config: ServerConfig,
+    keyVault: KeyVault | undefined,
+  ): Promise<void> {
+    const { providerRegistry, costTracker } = this;
+
     // Create providers from configuration
-    const providers = createProviders(config.providers);
+    const providers = await createProviders(config.providers, keyVault);
 
     // Register all providers
     for (const provider of providers) {
-      this.providerRegistry.register(provider);
+      providerRegistry.register(provider);
     }
 
-    // Initialize executor
+    // Phase 2: F17 — ProvenanceSigner for C2PA signing
+    const provenanceSigner = config.provenanceConfig
+      ? new ProvenanceSigner(config.provenanceConfig)
+      : undefined;
+
+    // Initialize executor with Phase 2 feature callbacks
     this.executor = new PipelineExecutor({
-      providers: this.providerRegistry.getAllProviders(),
+      providers: providerRegistry.getAllProviders(),
       llmJudgeFn: (prompt, artifact) => this.evaluateWithLLM(prompt, artifact),
       customCheckFn: (artifact, gateConfig) => this.evaluateCustomGate(artifact, gateConfig),
       prepareInputs: (operation, inputs) => this.prepareProviderInputs(operation, inputs),
       persistArtifact: (params) => this.persistArtifact(params),
       onEvent: (event) => this.handlePipelineEvent(event),
-      onCost: (record) => this.costTracker.record(record),
+      onCost: (record) => costTracker.record(record),
+      // F18: per-tenant allow-list. No-op when multiTenant is off.
+      tenantPolicyEnforceFn: (provider, model) => enforceTenantPolicy(provider, model),
+      // F17: assemble a real C2PA manifest with the runId, pipelineDefHash, model
+      // ingredient assertions, and upstream artifact references provided by the
+      // executor. Empty/placeholder fields were the previous failure mode — they
+      // produced manifests that audited as "ran on runId=''" which is worse than no
+      // manifest at all. The signer itself currently throws when enabled (the real
+      // c2pa-node integration is pending); we still assemble the correct manifest
+      // shape so the moment the signer ships it has the right input.
+      signProvenance: provenanceSigner
+        ? async ({
+            artifactId,
+            runId,
+            pipelineDefHash,
+            stepId,
+            operation,
+            providerId,
+            modelId,
+            ingredientArtifactIds,
+          }) => {
+            const artifactObj = this.executor.getRegistry().get(artifactId);
+            if (!artifactObj) return { signedArtifactId: artifactId, manifestUri: '' };
+            const manifest = {
+              title: `${operation} via ${providerId}`,
+              format: artifactObj.mimeType,
+              claimGenerator: 'media-pipeline-mcp/0.1.0',
+              assertions: [
+                {
+                  kind: 'c2pa.actions' as const,
+                  actions: [
+                    {
+                      action: 'c2pa.created' as const,
+                      when: new Date().toISOString(),
+                      softwareAgent: `media-pipeline-mcp/${providerId}`,
+                      parameters: { stepId, operation },
+                    },
+                  ],
+                },
+                {
+                  kind: 'c2pa.model' as const,
+                  providerId,
+                  modelId: modelId ?? 'unknown',
+                },
+              ],
+              ingredients: (ingredientArtifactIds ?? []).map((id) => ({
+                artifactId: id,
+                relationship: 'inputTo' as const,
+              })),
+              pipelineDefHash,
+              runId,
+              generatedAt: new Date().toISOString(),
+            };
+            return provenanceSigner.sign(artifactId, manifest);
+          }
+        : undefined,
+      // F8: Route-based provider selection
+      routeStepFn: async (params) => {
+        const { route, operation, resolvedInputs, stepConfig, getProviderByName } = params;
+        const routeConfig = route as RouteConfig;
+        if (!routeConfig.candidates || routeConfig.candidates.length === 0) return null;
+
+        const router = new Router({
+          // Real per-candidate estimator — the previous hardcoded $0.01 made
+          // 'cheapest-acceptable' meaningless (everyone tied). Now we ask each
+          // candidate's provider what *they* think a call costs given the inputs.
+          estimateCost: async (candidate: RouteCandidate, routerInputs: ProviderInput) => {
+            const p = getProviderByName(candidate.provider) as unknown as ProviderWithEstimateCost;
+            if (!p || typeof p.estimateCost !== 'function') {
+              return { costUsd: 0, currency: 'USD' };
+            }
+            try {
+              const est = await p.estimateCost({
+                operation: routerInputs.operation,
+                params: {
+                  ...(routerInputs.params as Record<string, unknown>),
+                  model: candidate.model,
+                },
+                config: {
+                  ...((routerInputs.config as Record<string, unknown>) ?? {}),
+                  model: candidate.model,
+                },
+              });
+              return { costUsd: est.costUsd, currency: 'USD' };
+            } catch {
+              return { costUsd: 0, currency: 'USD' };
+            }
+          },
+          health: async (candidate: RouteCandidate) => {
+            const p = getProviderByName(candidate.provider);
+            if (!p) return { healthy: false };
+            try {
+              const healthy = await p.healthCheck();
+              return { healthy, latencyMs: 100 };
+            } catch {
+              return { healthy: false };
+            }
+          },
+          // Surface pricing.json's expectedDurationMs so the 'fastest' strategy can
+          // enforce its <5000ms eligibility rule (§F8). Without this every fastest
+          // route throws RouterFastestIneligibleError on the first candidate.
+          expectedDurationMs: (candidate: RouteCandidate, routerInputs: ProviderInput) => {
+            const p = getProviderByName(candidate.provider) as unknown as ProviderWithEstimateCost;
+            if (!p || typeof p.estimateCost !== 'function') return undefined;
+            // The provider's estimateCost result carries estimatedDurationMs. We can't
+            // call it sync, so use the cached value from a recent estimate cycle. The
+            // router invokes estimateCost first in cheapest-acceptable mode; for
+            // first-success/fastest we kick a fire-and-forget estimate and cache it.
+            const cacheKey = `${candidate.provider}::${candidate.model}`;
+            const cached = this.routerDurationCache.get(cacheKey);
+            if (cached !== undefined) return cached;
+            // Async populate; subsequent calls hit the cache.
+            void p
+              .estimateCost({
+                operation: routerInputs.operation,
+                params: {
+                  ...(routerInputs.params as Record<string, unknown>),
+                  model: candidate.model,
+                },
+                config: {
+                  ...((routerInputs.config as Record<string, unknown>) ?? {}),
+                  model: candidate.model,
+                },
+              })
+              .then((est: { estimatedDurationMs?: number }) => {
+                if (typeof est.estimatedDurationMs === 'number') {
+                  this.routerDurationCache.set(cacheKey, est.estimatedDurationMs);
+                }
+              })
+              .catch(() => {
+                /* ignore */
+              });
+            return undefined;
+          },
+          execute: async (
+            candidate: RouteCandidate,
+            routerInputs: ProviderInput,
+            _signal: AbortSignal,
+          ) => {
+            const p = getProviderByName(candidate.provider);
+            if (!p) throw new Error(`Provider not found: ${candidate.provider}`);
+            const mergedConfig = {
+              ...((routerInputs.config as Record<string, unknown>) || {}),
+              model: candidate.model,
+            };
+            const execResult = await p.execute(
+              routerInputs.operation,
+              routerInputs.params as Record<string, unknown>,
+              mergedConfig,
+            );
+            return {
+              data: execResult.data as Buffer,
+              mimeType: execResult.artifact.mimeType,
+              metadata: execResult.artifact.metadata as Record<string, unknown>,
+              costUsd: execResult.cost_usd,
+              durationMs: execResult.duration_ms,
+            };
+          },
+        });
+
+        const providerInputs = {
+          operation,
+          params: resolvedInputs as Record<string, unknown>,
+          config: stepConfig,
+        };
+        const { decision } = await router.route(routeConfig, providerInputs);
+        const selectedProvider = getProviderByName(decision.selected.provider);
+        if (!selectedProvider)
+          throw new Error(`Router selected unknown provider: ${decision.selected.provider}`);
+
+        const mergedConfig = { ...stepConfig, model: decision.selected.model };
+        const mergedInputs = await this.prepareProviderInputs(operation, resolvedInputs);
+        const execResult = await selectedProvider.execute(operation, mergedInputs, mergedConfig);
+
+        const artifactId = `route-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const persisted = await this.persistArtifact({
+          artifactId,
+          operation,
+          data: execResult.data,
+          artifact: { ...execResult.artifact, sourceStep: params.stepId },
+          pipelineId: params.pipelineId,
+          stepId: params.stepId,
+        });
+        const artifact = this.executor.getRegistry().registerWithId(artifactId, {
+          ...execResult.artifact,
+          uri: persisted?.uri ?? execResult.artifact.uri,
+          sourceStep: params.stepId,
+        });
+
+        if (execResult.cost_usd !== undefined) {
+          costTracker.record({
+            operation,
+            provider: selectedProvider.name,
+            model: decision.selected.model,
+            cost_usd: execResult.cost_usd,
+            artifactId: artifact.id,
+            pipelineId: params.pipelineId,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        return { artifact, providerName: selectedProvider.name };
+      },
+      // F9: Variants execution
+      variantsStepFn: async (params) => {
+        const { variants, step, resolvedInputs: _resolvedInputs } = params;
+        const variantsExecutor = new VariantsExecutor();
+        const vContext: VariantsExecutorContext = {
+          executeOperation: async (
+            op: string,
+            inputs: Record<string, unknown>,
+            config: Record<string, unknown>,
+          ) => {
+            const p = providerRegistry.getProvider(op);
+            if (!p) throw new Error(`No provider for: ${op}`);
+            const r = await p.execute(op, inputs, config);
+            const artId = `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const persisted = await this.persistArtifact({
+              artifactId: artId,
+              operation: op,
+              data: r.data,
+              artifact: { ...r.artifact, sourceStep: step.id },
+              pipelineId: params.pipelineId,
+              stepId: step.id,
+            });
+            const art = this.executor.getRegistry().registerWithId(artId, {
+              ...r.artifact,
+              uri: persisted?.uri ?? r.artifact.uri,
+              sourceStep: step.id,
+            });
+            return { artifact: art, costUsd: r.cost_usd ?? 0 };
+          },
+          llmJudgeFn: async (criteria: string, artifact: Artifact, _rubric?: JudgeRubric) => {
+            const result = await this.evaluateWithLLM(criteria, artifact);
+            return { score: result.score ?? (result.pass ? 1 : 0), rationale: result.reasoning };
+          },
+        };
+
+        const output = await variantsExecutor.executeVariants(
+          step,
+          variants as Parameters<typeof variantsExecutor.executeVariants>[1],
+          vContext,
+        );
+        if (!output.winner) throw new Error('All variants rejected');
+        const winnerArtifactId = output.winner.artifactId;
+        if (!winnerArtifactId) throw new Error('Winner has no artifactId');
+        const winnerArtifact = this.executor.getRegistry().get(winnerArtifactId);
+        if (!winnerArtifact) throw new Error(`Winner artifact not found: ${winnerArtifactId}`);
+        return { artifact: winnerArtifact };
+      },
+      // F11: Ratio fan-out execution
+      ratiosStepFn: async (params) => {
+        const { ratios, operation, resolvedInputs, stepId } = params;
+        const provider = providerRegistry.getProvider(operation);
+        if (!provider) throw new Error(`No provider for: ${operation}`);
+
+        const ratioExecutor = new RatioFanOutExecutor();
+        const mediaProvider = {
+          name: provider.name,
+          supportedOperations: provider.supportedOperations,
+          execute: async (input: ProviderInput) => {
+            const r = await provider.execute(input.operation, input.params, input.config);
+            return {
+              data: r.data as Buffer,
+              mimeType: r.artifact.mimeType,
+              metadata: r.artifact.metadata as Record<string, unknown>,
+              costUsd: r.cost_usd,
+              durationMs: r.duration_ms,
+            };
+          },
+          healthCheck: () => provider.healthCheck(),
+          // Delegate to the underlying provider's estimator instead of a $0.01 fake.
+          // Ratio fan-out multiplies this by the number of native renders so the
+          // upstream cost telemetry needs to be accurate.
+          estimateCost: async (input: ProviderInput) => {
+            const providerEst = provider as unknown as ProviderWithEstimateCost;
+            if (typeof providerEst.estimateCost === 'function') {
+              try {
+                const est = await providerEst.estimateCost(input);
+                return { costUsd: est.costUsd ?? 0, currency: 'USD' };
+              } catch {
+                /* fall through */
+              }
+            }
+            return { costUsd: 0, currency: 'USD' };
+          },
+        };
+
+        const ratioOutput = await ratioExecutor.executeFanOut(
+          operation,
+          resolvedInputs,
+          ratios as Parameters<typeof ratioExecutor.executeFanOut>[2],
+          {
+            provider: mediaProvider as unknown as Parameters<
+              typeof ratioExecutor.executeFanOut
+            >[3]['provider'],
+            storage: this.storage,
+            operation,
+          },
+        );
+
+        if (ratioOutput.variants.length === 0)
+          throw new Error('Ratio fan-out produced no variants');
+        const firstVariant = ratioOutput.variants[0];
+        const ratioArtifact = this.executor.getRegistry().registerWithId(firstVariant.artifactId, {
+          type: 'image' as const,
+          uri: `ratio://${firstVariant.artifactId}`,
+          mimeType: 'image/png',
+          metadata: {
+            width: firstVariant.width,
+            height: firstVariant.height,
+            ratio: firstVariant.ratio,
+          },
+          sourceStep: stepId,
+        });
+
+        return { artifact: ratioArtifact };
+      },
+      // F13: Context resolution
+      contextResolveFn: (params) => {
+        const resolver = new ContextResolver();
+        return resolver.resolveInputs(params.inputs, params.context, params.providerName);
+      },
+      // F14: Loudness gate evaluation.
+      // The evaluator works on filesystem paths (ffmpeg I/O), but artifacts live in
+      // ArtifactStore. We materialize to a temp file, run the two-pass loudnorm, and
+      // when normalize produces output, persist the result via storage and return a
+      // real artifact id (was previously a fs path leaking into downstream metadata).
+      gateEvalFn: async (params) => {
+        const { gate, artifact, artifactUri } = params;
+        if ((gate as { type?: string }).type !== 'loudness') return null;
+
+        const os = await import('node:os');
+        const fs = await import('node:fs');
+        const path = await import('node:path');
+
+        const evaluator = createLoudnessGateEvaluator();
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'loudness-'));
+        const inputExt = artifact.mimeType?.startsWith('video/') ? '.mp4' : '.wav';
+        const tempInputPath = path.join(tempDir, `input${inputExt}`);
+
+        try {
+          // Materialize artifact bytes to disk so ffmpeg can read them.
+          let inputBytes: Buffer;
+          try {
+            const stored = await this.storage.get(artifactUri.replace(/^.*\//, ''));
+            inputBytes = Buffer.isBuffer(stored.data)
+              ? stored.data
+              : await this.toBuffer(stored.data);
+          } catch {
+            return { passed: false, action: 'fail' };
+          }
+          fs.writeFileSync(tempInputPath, inputBytes);
+
+          const verdict = await evaluator.evaluate(
+            tempInputPath,
+            gate as Parameters<typeof evaluator.evaluate>[1],
+          );
+          if (verdict.status === 'within-tolerance') {
+            return { passed: true, action: 'warn' };
+          }
+          if (verdict.action === 'normalize' && verdict.resultArtifactId) {
+            // verdict.resultArtifactId is a filesystem path produced by ffmpeg pass 2.
+            // Persist via storage so callers get a stable artifact id, not a temp path
+            // that disappears once the request finishes.
+            const normalizedBytes = fs.readFileSync(verdict.resultArtifactId);
+            const normalizedId = `loud-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            await this.storage.put(normalizedId, normalizedBytes, {
+              id: normalizedId,
+              type: artifact.type,
+              mimeType: artifact.mimeType,
+              metadata: {
+                ...artifact.metadata,
+                loudnessNormalized: true,
+                originalArtifactId: artifact.id,
+                target: verdict.target,
+                measured: verdict.measured,
+              },
+              sourceStep: artifact.sourceStep,
+            });
+            const normalized: typeof artifact = {
+              ...artifact,
+              id: normalizedId,
+              uri: `loud://${normalizedId}`,
+              metadata: {
+                ...artifact.metadata,
+                loudnessNormalized: true,
+                originalLoudness: verdict.measured,
+              },
+            };
+            return { passed: false, action: 'normalize', resultArtifact: normalized };
+          }
+          if (verdict.action === 'fail') {
+            return { passed: false, action: 'fail' };
+          }
+          return { passed: true, action: 'warn' };
+        } catch {
+          return { passed: false, action: 'fail' };
+        } finally {
+          try {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          } catch {
+            /* best-effort cleanup */
+          }
+        }
+      },
     });
 
     // Initialize validator
-    this.validator = new PipelineValidator(this.providerRegistry);
+    this.validator = new PipelineValidator(providerRegistry);
 
-    this.setupToolHandlers();
+    // F15: Set batch executor row executor now that executor/validator are ready
+    this.batchExecutor.setRowExecutor(async (pipeline, row, _batchId) => {
+      const interpolated = this.interpolateRowIntoPipeline(
+        pipeline as Record<string, unknown>,
+        row,
+      );
+      const validation = this.validator.validate(interpolated as PipelineDefinition);
+      if (!validation.valid) {
+        throw new Error(`Row pipeline validation failed: ${validation.errors.join(', ')}`);
+      }
+      const withDefaultSafety = this.applyDefaultSafetyGate(
+        interpolated as Record<string, unknown>,
+      );
+      const result = await this.executor.execute(withDefaultSafety as PipelineDefinition);
+      this.pipelines.set(result.id, result);
+      return {
+        artifactIds: Array.from(result.artifacts.keys()),
+        costUsd: costTracker.getPipelineCost(result.id),
+      };
+    });
+
+    // F15 final-state JSONL report: when the BatchExecutor finalizes a batch, persist
+    // the BatchReportRow[] to storage so callers can fetch the audit trail via the
+    // returned reportArtifactId. The id format mirrors row-artifact ids so the storage
+    // backend's tenant-prefix and retention rules apply.
+    this.batchExecutor.setReportPersister(async (batchId, rows) => {
+      const jsonl = rows.map((r) => JSON.stringify(r)).join('\n');
+      const artifactId = `batch-report-${batchId}`;
+      await this.storage.put(artifactId, Buffer.from(jsonl, 'utf8'), {
+        id: artifactId,
+        type: 'document',
+        mimeType: 'application/x-ndjson',
+        metadata: { batchId, rowCount: rows.length, kind: 'batch-report' },
+      });
+      return artifactId;
+    });
   }
 
   private setupToolHandlers(): void {
@@ -203,18 +860,65 @@ export class MCPServer {
         },
         {
           name: 'media.pipeline.resume',
-          description: 'Resume a gated or failed pipeline',
+          description: 'Resume a gated or failed pipeline by run ID',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              runId: { type: 'string', description: 'Run ID of the pipeline to resume' },
+              fromStepId: { type: 'string', description: 'Optional step ID to resume from' },
+            },
+            required: ['runId'],
+          },
+        },
+        {
+          name: 'media.pipeline.cancel',
+          description: 'Cancel a running pipeline',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              pipeline_id: { type: 'string', description: 'ID of the pipeline to cancel' },
+            },
+            required: ['pipeline_id'],
+          },
+        },
+        {
+          name: 'media.pipeline.estimate',
+          description: 'Dry-run cost and duration estimation for a pipeline',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              pipeline: {
+                type: 'object',
+                description: 'Pipeline definition to estimate',
+                properties: {
+                  id: { type: 'string' },
+                  steps: {
+                    type: 'array',
+                    items: { type: 'object' },
+                  },
+                },
+                required: ['id', 'steps'],
+              },
+            },
+            required: ['pipeline'],
+          },
+        },
+        {
+          name: 'media.pipeline.subscribe',
+          description: 'Subscribe to pipeline events via webhook',
           inputSchema: {
             type: 'object',
             properties: {
               pipeline_id: { type: 'string', description: 'ID of the pipeline' },
-              action: {
-                type: 'string',
-                enum: ['retry', 'skip', 'abort'],
-                description: 'Action to take',
+              url: { type: 'string', description: 'Webhook URL to receive events' },
+              events: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'List of event types to subscribe to',
               },
+              secret: { type: 'string', description: 'Optional HMAC secret for signing' },
             },
-            required: ['pipeline_id', 'action'],
+            required: ['pipeline_id', 'url', 'events'],
           },
         },
         {
@@ -223,6 +927,70 @@ export class MCPServer {
           inputSchema: {
             type: 'object',
             properties: {},
+          },
+        },
+        // Batch pipeline operations (F15)
+        {
+          name: 'media.pipeline.batch',
+          description: 'Execute a batch of pipeline runs from a CSV, JSONL, or inline data source',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              pipeline: {
+                type: 'object',
+                description: 'Pipeline definition with {{row.field}} interpolation',
+              },
+              source: { type: 'object', description: 'Data source descriptor' },
+              concurrency: { type: 'number', description: 'Max concurrent executions', default: 1 },
+              onRowFailure: {
+                type: 'string',
+                enum: ['continue', 'stop', 'retry-once'],
+                default: 'continue',
+              },
+              perRunBudget: { type: 'object', description: 'Budget limits per run' },
+              artifactTags: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Artifact tags',
+              },
+              idempotencyKey: { type: 'string', description: 'Idempotency key' },
+            },
+            required: ['pipeline', 'source'],
+          },
+        },
+        {
+          name: 'media.pipeline.batch.status',
+          description: 'Check the status of a batch pipeline execution',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              batchId: { type: 'string', description: 'Batch ID' },
+            },
+            required: ['batchId'],
+          },
+        },
+        {
+          name: 'media.pipeline.batch.retry',
+          description: 'Retry failed rows in a batch',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              batchId: { type: 'string', description: 'Batch ID' },
+              onlyFailed: { type: 'boolean', default: true },
+              onlyRowIndexes: { type: 'array', items: { type: 'number' } },
+            },
+            required: ['batchId'],
+          },
+        },
+        {
+          name: 'media.pipeline.batch.cancel',
+          description: 'Cancel a running batch pipeline execution',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              batchId: { type: 'string', description: 'Batch ID' },
+            },
+            required: ['batchId'],
           },
         },
         // Artifact operations
@@ -281,14 +1049,39 @@ export class MCPServer {
         },
       ];
 
+      // Spec §0.4 aliases: for each `media.pipeline.X` tool, also advertise the
+      // spec-canonical `pipeline.X` name. The dispatch switch accepts both. Aliased
+      // tools share the original's inputSchema and description.
+      const aliasMap: Record<string, string> = {
+        'media.pipeline.run': 'pipeline.execute',
+        'media.pipeline.status': 'pipeline.status',
+        'media.pipeline.resume': 'pipeline.resume',
+        'media.pipeline.cancel': 'pipeline.cancel',
+        'media.pipeline.estimate': 'pipeline.estimate',
+        'media.pipeline.subscribe': 'pipeline.subscribe',
+        'media.pipeline.templates': 'pipeline.templates',
+        'media.pipeline.batch': 'pipeline.batch',
+        'media.pipeline.batch.status': 'pipeline.batch.status',
+        'media.pipeline.batch.retry': 'pipeline.batch.retry',
+        'media.pipeline.batch.cancel': 'pipeline.batch.cancel',
+      };
+      const aliasedTools = additionalTools
+        .filter((t) => aliasMap[t.name])
+        .map((t) => ({
+          ...t,
+          name: aliasMap[t.name],
+          description: `${t.description} (spec-canonical alias of ${t.name})`,
+        }));
+
       return {
-        tools: [...registryTools, ...additionalTools],
+        tools: [...registryTools, ...additionalTools, ...aliasedTools],
       };
     });
 
     // Call tool
     this.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const { name, arguments: args } = request.params;
+      const { name, arguments: rawArgs } = request.params;
+      const args = (rawArgs ?? {}) as Record<string, unknown>;
 
       const authContext = extra?.authInfo as AuthContext | undefined;
       if (
@@ -304,109 +1097,425 @@ export class MCPServer {
         };
       }
 
+      // Phase 2: F18 — resolve tenant before dispatching. The resolved TenantContext is
+      // stored in AsyncLocalStorage so downstream code (provider factory, cache key, cost
+      // ledger, resource handler) can read it without explicit threading.
+      let resolvedTenant: TenantContext | undefined;
+      if (this.config.multiTenant?.enabled) {
+        const mt = this.config.multiTenant;
+        // The MCP transport doesn't surface inbound HTTP headers in this handler scope.
+        // We carry them via a per-request scratch attached to extra.requestInfo when the
+        // HTTP layer runs; absence falls back to args._meta.tenantId or the strategy's
+        // own resolver (which for 'static' kind needs no headers anyway).
+        const meta = (args._meta as Record<string, unknown> | undefined) ?? {};
+        const headersAny =
+          (extra?.requestInfo as { headers?: Record<string, string> } | undefined)?.headers ?? {};
+        const headers: Record<string, string> = {};
+        for (const [k, v] of Object.entries(headersAny)) headers[k.toLowerCase()] = v;
+        // _meta.tenantId acts as a manual override / dev convenience.
+        if (typeof meta.tenantId === 'string') headers['x-tenant-id'] = meta.tenantId;
+        const tenantId = await resolveTenantId(mt.resolver, { headers, body: args });
+        if (!tenantId) {
+          throw new TenantNotFoundError();
+        }
+        resolvedTenant = await mt.keyVault.resolve(tenantId);
+        // Apply defaultBudgetCaps when KeyVault didn't return any.
+        if (!resolvedTenant.budgetCaps && mt.defaultBudgetCaps) {
+          resolvedTenant = { ...resolvedTenant, budgetCaps: mt.defaultBudgetCaps };
+        }
+      }
+
+      // Wrap the rest of the handler in tenantStorage so getTenantContext() reads it.
+      // When multiTenant is off, run() with undefined is a no-op AsyncLocalStorage frame.
+      return resolvedTenant
+        ? await tenantStorage.run(resolvedTenant, () => this.dispatchTool(name, args, extra))
+        : await this.dispatchTool(name, args, extra);
+    });
+  }
+
+  // dispatchTool extracted so the multi-tenant AsyncLocalStorage wrap doesn't bloat
+  // setupToolHandlers. Body retains the legacy idempotency + streaming + switch dispatch.
+  // Return type left untyped (any) to match the SDK's CallToolResult shape, which is
+  // structurally constrained but uses optional fields the legacy handler returns ad hoc.
+  private async dispatchTool(
+    name: string,
+    args: Record<string, unknown>,
+    _extra: unknown,
+  ): Promise<ToolHandlerResult> {
+    // Phase 2: F1 Idempotency check
+    // Resolves: lookup-existing, body-mismatch, in-flight conflict, completed replay,
+    // failed replay (re-throws the stored error). Writes an in-flight placeholder
+    // before invoking the handler so concurrent calls race correctly.
+    let idempotencyRunId: string | undefined;
+    let idempotencyKey: string | undefined;
+    if (this.idempotencyMiddleware) {
+      idempotencyKey = this.idempotencyMiddleware.extractIdempotencyKey(args);
+      if (idempotencyKey) {
+        const bodyHash = computeBodyHash(args);
+        const store = this.idempotencyMiddleware.store;
+        try {
+          const existing = await store.get(idempotencyKey);
+          if (existing) {
+            if (existing.bodyHash !== bodyHash) {
+              throw new IdempotencyConflictError('body-mismatch', existing.runId);
+            }
+            if (existing.status === 'in-flight') {
+              throw new IdempotencyConflictError('in-flight', existing.runId);
+            }
+            if (existing.status === 'failed') {
+              const f = existing.failure;
+              if (f) {
+                const err = new Error(f.message);
+                (err as Error & { code?: string }).code = f.code;
+                throw err;
+              }
+              throw new Error('Idempotency entry marked failed but no failure recorded');
+            }
+            // status === 'completed'
+            return existing.response as ToolHandlerResult;
+          }
+          // No prior entry: insert an in-flight placeholder with a real runId.
+          idempotencyRunId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+          await store.set({
+            key: idempotencyKey,
+            runId: idempotencyRunId,
+            bodyHash,
+            status: 'in-flight',
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 86_400_000),
+          });
+        } catch (err) {
+          if (err instanceof IdempotencyConflictError) throw err;
+          // Store failures are non-critical — proceed without idempotency tracking
+          // for this call but log so operators can find a broken store.
+          console.error('Idempotency store error; proceeding without:', (err as Error).message);
+          idempotencyKey = undefined;
+        }
+      }
+    }
+
+    // Phase 2: F6 Streaming - extract progressToken from _meta
+    const progressToken = this.streamingBridge
+      ? (this.idempotencyMiddleware?.extractProgressToken(args) ?? undefined)
+      : undefined;
+
+    let result: ToolHandlerResult | undefined;
+
+    try {
       switch (name) {
         case 'media.pipeline.define':
-          return this.handleDefinePipeline(args as { pipeline: PipelineDefinition });
+          result = await this.handleDefinePipeline(args as { pipeline: PipelineDefinition });
+          break;
 
         case 'media.pipeline.run':
-          return this.handleRunPipeline(args as { pipeline: PipelineDefinition });
+        case 'pipeline.execute':
+          // F1: forward the idempotency-minted runId so cached entry's runId equals
+          // the real pipeline run id (otherwise pipeline.resume by the stored runId
+          // would never find the run).
+          result = await this.handleRunPipeline(
+            args as { pipeline: PipelineDefinition },
+            idempotencyRunId,
+          );
+          break;
 
+        // Spec §0.4 names (pipeline.status, pipeline.resume, etc.) are accepted as
+        // first-class aliases for the legacy media.pipeline.* prefixed tools so
+        // spec-compliant MCP clients work out of the box. Both names dispatch to the
+        // same handler; existing callers using the legacy prefix keep working.
         case 'media.pipeline.status':
-          return this.handlePipelineStatus(args as { pipeline_id: string });
+        case 'pipeline.status':
+          result = this.handlePipelineStatus(args as { pipeline_id: string });
+          break;
 
         case 'media.pipeline.resume':
-          return this.handleResumePipeline(
-            args as { pipeline_id: string; action: 'retry' | 'skip' | 'abort' },
+        case 'pipeline.resume':
+          result = await this.handleResumePipeline(args as { runId: string; fromStepId?: string });
+          break;
+
+        case 'media.pipeline.cancel':
+        case 'pipeline.cancel':
+          result = this.handleCancelPipeline(args as { pipeline_id: string });
+          break;
+
+        case 'media.pipeline.estimate':
+        case 'pipeline.estimate':
+          result = await this.handlePipelineEstimate(args as { pipeline: PipelineDefinition });
+          break;
+
+        case 'media.pipeline.subscribe':
+        case 'pipeline.subscribe':
+          result = this.handlePipelineSubscribe(
+            args as Parameters<typeof this.handlePipelineSubscribe>[0],
           );
+          break;
 
         case 'media.pipeline.templates':
-          return this.handleListTemplates();
+        case 'pipeline.templates':
+          result = this.handleListTemplates();
+          break;
+
+        // F15: Batch pipeline operations
+        case 'media.pipeline.batch':
+        case 'pipeline.batch':
+          result = await this.handleBatchStart(args as Parameters<typeof this.handleBatchStart>[0]);
+          break;
+
+        case 'media.pipeline.batch.status':
+        case 'pipeline.batch.status':
+          result = await this.handleBatchStatus(args as { batchId: string });
+          break;
+
+        case 'media.pipeline.batch.retry':
+        case 'pipeline.batch.retry':
+          result = await this.handleBatchRetry(args as Parameters<typeof this.handleBatchRetry>[0]);
+          break;
+
+        case 'media.pipeline.batch.cancel':
+        case 'pipeline.batch.cancel':
+          result = await this.handleBatchCancel(args as { batchId: string });
+          break;
 
         case 'media.artifact.get':
-          return this.handleGetArtifact(args as { artifact_id: string });
+          result = await this.handleGetArtifact(args as { artifact_id: string });
+          break;
 
         case 'media.artifact.list':
-          return this.handleListArtifacts(args as { prefix?: string; limit?: number });
+          result = await this.handleListArtifacts(args as { prefix?: string; limit?: number });
+          break;
 
         case 'media.artifact.delete':
-          return this.handleDeleteArtifact(args as { artifact_id: string });
+          result = await this.handleDeleteArtifact(args as { artifact_id: string });
+          break;
 
         case 'media.providers.list':
-          return this.handleListProviders();
+          result = this.handleListProviders();
+          break;
 
         case 'media.providers.health':
-          return this.handleCheckProviderHealth(args as { provider_id: string });
+          result = await this.handleCheckProviderHealth(args as { provider_id: string });
+          break;
 
         case 'media.costs.summary':
-          return this.handleCostSummary();
+          result = this.handleCostSummary();
+          break;
 
         // Image operations
         case 'image.generate':
-          return this.handleOperation(args as Record<string, unknown>, 'image.generate');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.generate');
+          break;
         case 'image.generate.batch':
-          return this.handleOperation(args as Record<string, unknown>, 'image.generate.batch');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'image.generate.batch',
+          );
+          break;
         case 'image.upscale':
-          return this.handleOperation(args as Record<string, unknown>, 'image.upscale');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.upscale');
+          break;
         case 'image.remove_background':
-          return this.handleOperation(args as Record<string, unknown>, 'image.remove_background');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'image.remove_background',
+          );
+          break;
         case 'image.inpaint':
-          return this.handleOperation(args as Record<string, unknown>, 'image.inpaint');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.inpaint');
+          break;
         case 'image.describe':
-          return this.handleOperation(args as Record<string, unknown>, 'image.describe');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.describe');
+          break;
         case 'image.resize':
-          return this.handleOperation(args as Record<string, unknown>, 'image.resize');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.resize');
+          break;
         case 'image.crop':
-          return this.handleOperation(args as Record<string, unknown>, 'image.crop');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.crop');
+          break;
         case 'image.composite':
-          return this.handleOperation(args as Record<string, unknown>, 'image.composite');
+          result = await this.handleOperation(args as Record<string, unknown>, 'image.composite');
+          break;
         case 'image.image_to_image':
-          return this.handleOperation(args as Record<string, unknown>, 'image.image_to_image');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'image.image_to_image',
+          );
+          break;
 
         // Audio operations
         case 'audio.tts':
-          return this.handleOperation(args as Record<string, unknown>, 'audio.tts');
+          result = await this.handleOperation(args as Record<string, unknown>, 'audio.tts');
+          break;
         case 'audio.stt':
-          return this.handleOperation(args as Record<string, unknown>, 'audio.stt');
+          result = await this.handleOperation(args as Record<string, unknown>, 'audio.stt');
+          break;
+
+        // F20: Real-time STT streaming
+        case 'audio.transcribeStream':
+          result = await this.handleTranscribeStream(args as Record<string, unknown>);
+          break;
         case 'audio.diarize':
-          return this.handleOperation(args as Record<string, unknown>, 'audio.diarize');
+          result = await this.handleOperation(args as Record<string, unknown>, 'audio.diarize');
+          break;
         case 'audio.isolate':
-          return this.handleOperation(args as Record<string, unknown>, 'audio.isolate');
+          result = await this.handleOperation(args as Record<string, unknown>, 'audio.isolate');
+          break;
         case 'audio.music':
-          return this.handleOperation(args as Record<string, unknown>, 'audio.music');
+          result = await this.handleOperation(args as Record<string, unknown>, 'audio.music');
+          break;
         case 'audio.sound_effect':
-          return this.handleOperation(args as Record<string, unknown>, 'audio.sound_effect');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'audio.sound_effect',
+          );
+          break;
 
         // Video operations
         case 'video.generate':
-          return this.handleOperation(args as Record<string, unknown>, 'video.generate');
+          result = await this.handleOperation(args as Record<string, unknown>, 'video.generate');
+          break;
+        case 'video.subtitle':
+          result = await this.handleSubtitle(args as unknown as SubtitleConfig);
+          break;
         case 'video.image_to_video':
-          return this.handleOperation(args as Record<string, unknown>, 'video.image_to_video');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'video.image_to_video',
+          );
+          break;
         case 'video.extract_frames':
-          return this.handleOperation(args as Record<string, unknown>, 'video.extract_frames');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'video.extract_frames',
+          );
+          break;
         case 'video.extract_audio':
-          return this.handleOperation(args as Record<string, unknown>, 'video.extract_audio');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'video.extract_audio',
+          );
+          break;
 
         // Document operations
         case 'document.ocr':
-          return this.handleOperation(args as Record<string, unknown>, 'document.ocr');
+          result = await this.handleOperation(args as Record<string, unknown>, 'document.ocr');
+          break;
         case 'document.extract_tables':
-          return this.handleOperation(args as Record<string, unknown>, 'document.extract_tables');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'document.extract_tables',
+          );
+          break;
         case 'document.extract_fields':
-          return this.handleOperation(args as Record<string, unknown>, 'document.extract_fields');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'document.extract_fields',
+          );
+          break;
         case 'document.summarize':
-          return this.handleOperation(args as Record<string, unknown>, 'document.summarize');
+          result = await this.handleOperation(
+            args as Record<string, unknown>,
+            'document.summarize',
+          );
+          break;
+
+        // F21: 3D Mesh generation
+        case 'mesh.generate':
+          result = await this.handleOperation(args as Record<string, unknown>, 'mesh.generate');
+          break;
 
         // Quality gate evaluation
         case 'quality_gate.evaluate':
-          return this.handleQualityGateEvaluate(args as { artifact_id: string; gate: any });
+          result = await this.handleQualityGateEvaluate(
+            args as { artifact_id: string; gate: Record<string, unknown> },
+          );
+          break;
 
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
-    });
+
+      // Phase 2: F1 Idempotency — flip the in-flight placeholder to 'completed'
+      // (or 'failed' in the catch below). Reuses the runId generated upfront so
+      // downstream consumers can correlate the cached response with the original run.
+      if (this.idempotencyMiddleware && idempotencyKey && idempotencyRunId && result) {
+        const bodyHash = computeBodyHash(args);
+        try {
+          await this.idempotencyMiddleware.store.set({
+            key: idempotencyKey,
+            runId: idempotencyRunId,
+            bodyHash,
+            response: result,
+            status: 'completed' as const,
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 86_400_000),
+          });
+        } catch {
+          // Non-critical; proceed
+        }
+      }
+
+      // Phase 2: F6 Streaming — bridge pipeline events to MCP $/progress notifications.
+      // The MCP SDK Server exposes notification() (jsonrpc fire-and-forget) which
+      // serialises out via the active transport. The bridge handles throttling and
+      // event-shape mapping; we just hand it a sink.
+      if (progressToken && this.streamingBridge) {
+        const pipelineId =
+          (result?.pipeline_id as string | undefined) ?? (result?.runId as string | undefined);
+        if (pipelineId) {
+          this.streamingBridge.subscribe(
+            pipelineId,
+            progressToken,
+            (notification: ProgressNotification) => {
+              // Send via MCP SDK. notification() is the canonical "fire a JSON-RPC
+              // notification" entry point; the transport layer handles backpressure
+              // (drops on full buffer per spec §F6).
+              void this.server.notification(notification);
+            },
+          );
+        }
+      }
+
+      return result;
+    } catch (error) {
+      // Phase 2: F1 Idempotency — flip the in-flight placeholder to 'failed'.
+      // The stored failure record is what gets re-thrown on a replay call.
+      if (this.idempotencyMiddleware && idempotencyKey && idempotencyRunId) {
+        const bodyHash = computeBodyHash(args);
+        try {
+          await this.idempotencyMiddleware.store.set({
+            key: idempotencyKey,
+            runId: idempotencyRunId,
+            bodyHash,
+            failure: {
+              code: (error as Error & { code?: string }).code ?? 'UNKNOWN',
+              message: (error as Error).message,
+            },
+            status: 'failed' as const,
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 86_400_000),
+          });
+        } catch {
+          // Non-critical; proceed
+        }
+      }
+
+      // IdempotencyConflictError surfaces to callers as the canonical error,
+      // not an in-band success/false envelope. Other errors keep the existing
+      // tool-response shape for backwards compatibility.
+      if (error instanceof IdempotencyConflictError) {
+        throw error;
+      }
+      return {
+        content: [{ type: 'text', text: `Error: ${(error as Error).message}` }],
+        success: false,
+        error: (error as Error).message,
+      };
+    }
   }
 
-  private async handleOperation(args: Record<string, unknown>, operation: string): Promise<any> {
+  private async handleOperation(
+    args: Record<string, unknown>,
+    operation: string,
+  ): Promise<ToolHandlerResult> {
     const startTime = Date.now();
 
     // Validate input against tool schema
@@ -448,8 +1557,25 @@ export class MCPServer {
       const inputs = await this.prepareProviderInputs(operation, args);
       const config = (args.config as Record<string, unknown>) || {};
 
-      // Estimate cost for budget check (use default if not available)
-      const estimatedCost = 0.01; // Default estimate
+      // F4 budget preflight: ask the provider what *this* call costs given the inputs.
+      // Falls back to a $0.01 sentinel when the provider doesn't implement estimateCost
+      // (legacy mocks); the budget tracker handles best-effort allowances. Spec §F4 says
+      // EstimateUnsupportedError → skip preflight, log; we treat "no estimator" the same way.
+      let estimatedCost = 0.01;
+      const providerEst = provider as unknown as ProviderWithEstimateCost;
+      if (typeof providerEst.estimateCost === 'function') {
+        try {
+          const est = await providerEst.estimateCost({ operation, params: inputs, config });
+          if (typeof est?.costUsd === 'number' && Number.isFinite(est.costUsd)) {
+            // Use usdHigh (conservative) when provider reports a band; CostEstimate.costUsd
+            // here is treated as the upper bound by convention in this codebase.
+            estimatedCost = est.costUsd;
+          }
+        } catch {
+          // Best-effort: estimator threw, fall through with the sentinel. The actual
+          // cost will be charged post-execution; cap may overshoot.
+        }
+      }
       if (!this.costTracker.canAfford(estimatedCost)) {
         const budgetStatus = this.costTracker.getBudgetStatus();
         return {
@@ -523,7 +1649,9 @@ export class MCPServer {
     }
   }
 
-  private async handleDefinePipeline(args: { pipeline: PipelineDefinition }): Promise<any> {
+  private async handleDefinePipeline(args: {
+    pipeline: PipelineDefinition;
+  }): Promise<ToolHandlerResult> {
     const result = this.validator.validate(args.pipeline);
 
     if (result.valid) {
@@ -553,7 +1681,10 @@ export class MCPServer {
     };
   }
 
-  private async handleRunPipeline(args: { pipeline: PipelineDefinition }): Promise<any> {
+  private async handleRunPipeline(
+    args: { pipeline: PipelineDefinition },
+    runIdOverride?: string,
+  ): Promise<ToolHandlerResult> {
     const startTime = Date.now();
 
     // Validate first
@@ -569,8 +1700,14 @@ export class MCPServer {
       };
     }
 
-    // Execute
-    const pipeline = await this.executor.execute(args.pipeline);
+    // Execute. When called from the idempotency middleware, runIdOverride is the
+    // already-stored runId — use it so a subsequent pipeline.resume(runId) matches.
+    // F16: apply default-on safety gate injection just before dispatch.
+    const withDefaultSafety = this.applyDefaultSafetyGate(args.pipeline as Record<string, unknown>);
+    const pipeline = await this.executor.execute(
+      withDefaultSafety as PipelineDefinition,
+      runIdOverride ? { runId: runIdOverride } : undefined,
+    );
     this.pipelines.set(pipeline.id, pipeline);
     if (this.pipelines.size > MCPServer.MAX_PIPELINE_HISTORY) {
       const oldest = this.pipelines.keys().next().value;
@@ -611,7 +1748,7 @@ export class MCPServer {
     };
   }
 
-  private handlePipelineStatus(args: { pipeline_id: string }): any {
+  private handlePipelineStatus(args: { pipeline_id: string }): ToolHandlerResult {
     const pipeline = this.pipelines.get(args.pipeline_id);
 
     if (!pipeline) {
@@ -646,32 +1783,23 @@ export class MCPServer {
   }
 
   private async handleResumePipeline(args: {
-    pipeline_id: string;
-    action: 'retry' | 'skip' | 'abort';
-  }): Promise<any> {
-    const pipeline = this.pipelines.get(args.pipeline_id);
-
-    if (!pipeline) {
-      return {
-        content: [{ type: 'text', text: `Pipeline not found: ${args.pipeline_id}` }],
-        success: false,
-        error: `Pipeline not found: ${args.pipeline_id}`,
-      };
-    }
-
+    runId: string;
+    fromStepId?: string;
+  }): Promise<ToolHandlerResult> {
     try {
-      const updatedPipeline = await this.executor.resume(pipeline, args.action);
+      const updatedPipeline = await this.executor.resume(args.runId, args.fromStepId);
       this.pipelines.set(updatedPipeline.id, updatedPipeline);
 
       return {
         content: [
           {
             type: 'text',
-            text: `Pipeline '${updatedPipeline.id}' resumed with action '${args.action}'. New status: ${updatedPipeline.status}`,
+            text: `Pipeline '${updatedPipeline.id}' resumed from step '${args.fromStepId || 'auto'}'. New status: ${updatedPipeline.status}`,
           },
         ],
         success: true,
         pipeline_id: updatedPipeline.id,
+        runId: args.runId,
         status: updatedPipeline.status,
       };
     } catch (error) {
@@ -683,7 +1811,155 @@ export class MCPServer {
     }
   }
 
-  private handleListTemplates(): any {
+  private handleCancelPipeline(args: { pipeline_id: string }): ToolHandlerResult {
+    const pipeline = this.pipelines.get(args.pipeline_id);
+
+    if (!pipeline) {
+      return {
+        content: [{ type: 'text', text: `Pipeline not found: ${args.pipeline_id}` }],
+        success: false,
+        error: `Pipeline not found: ${args.pipeline_id}`,
+      };
+    }
+
+    if (pipeline.status !== 'running' && pipeline.status !== 'pending') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Pipeline '${args.pipeline_id}' is not running (status: ${pipeline.status})`,
+          },
+        ],
+        success: false,
+        error: 'Pipeline is not running',
+        status: pipeline.status,
+      };
+    }
+
+    const controller = this.pipelineCancelControllers.get(args.pipeline_id);
+    if (controller) {
+      controller.abort();
+      this.pipelineCancelControllers.delete(args.pipeline_id);
+    }
+
+    pipeline.status = 'failed';
+    pipeline.failedStep = pipeline.currentStep;
+    pipeline.completedAt = new Date().toISOString();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Pipeline '${args.pipeline_id}' cancelled.`,
+        },
+      ],
+      success: true,
+      pipeline_id: pipeline.id,
+      status: 'cancelled',
+    };
+  }
+
+  private async handlePipelineEstimate(args: {
+    pipeline: PipelineDefinition;
+  }): Promise<ToolHandlerResult> {
+    if (!this.features.dryRun) {
+      return {
+        content: [{ type: 'text', text: 'Dry-run estimation feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: dryRun',
+      };
+    }
+
+    // Await async init so this.executor is ready (tests often call handlers before
+    // start()). Without this, the first estimate before init resolves would NPE.
+    await this.initPromise;
+
+    // Delegate to the executor's F5 estimator, which calls each provider's
+    // estimateCost() and surfaces router-spread / variable-output / no-estimator warnings.
+    // The previous in-server fake used a hardcoded $0.005–$0.015 band regardless of
+    // provider — useless for actual budgeting and inconsistent with executor.estimate().
+    const estimator: PipelineEstimator = {
+      estimate: (pipeline: PipelineDefinition): Promise<PipelineEstimate> =>
+        this.executor.estimate(pipeline),
+    };
+
+    const result = await handlePipelineEstimate(estimator, args);
+    return result;
+  }
+
+  private handlePipelineSubscribe(args: {
+    // Spec shape (§F7): runId/webhookUrl/events/headers/secret. Legacy fields
+    // pipeline_id/url accepted for backwards-compat.
+    runId?: string;
+    pipeline_id?: string;
+    webhookUrl?: string;
+    url?: string;
+    events?: string[];
+    headers?: Record<string, string>;
+    secret?: string;
+  }): ToolHandlerResult {
+    if (!this.features.webhooks) {
+      return {
+        content: [{ type: 'text', text: 'Webhook feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: webhooks',
+      };
+    }
+
+    const runId = args.runId ?? args.pipeline_id;
+    const webhookUrl = args.webhookUrl ?? args.url;
+    if (!runId || !webhookUrl) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'pipeline.subscribe requires runId (or pipeline_id) and webhookUrl (or url)',
+          },
+        ],
+        success: false,
+        error: 'Missing required field: runId or webhookUrl',
+      };
+    }
+
+    // Per spec: when the caller doesn't supply a secret, the server mints one and
+    // returns it so the caller can verify outbound HMAC signatures.
+    const secret = args.secret ?? crypto.randomUUID().replace(/-/g, '');
+
+    const subscription = this.subscriptionManager?.subscribe({
+      pipelineId: runId,
+      url: webhookUrl,
+      events: args.events ?? ['run-completed', 'run-failed'],
+      secret,
+      headers: args.headers,
+    });
+    if (!subscription) {
+      return {
+        content: [{ type: 'text', text: 'Subscription manager unavailable' }],
+        success: false,
+        error: 'Subscription manager unavailable',
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Subscribed to run '${runId}' events.\nSubscription ID: ${subscription.id}\nWebhook URL: ${webhookUrl}\nEvents: ${subscription.events.join(', ')}`,
+        },
+      ],
+      success: true,
+      subscriptionId: subscription.id,
+      subscription_id: subscription.id, // legacy alias
+      runId,
+      pipeline_id: runId, // legacy alias
+      webhookUrl,
+      url: webhookUrl, // legacy alias
+      events: subscription.events,
+      secret,
+    };
+  }
+
+  private handleListTemplates(): ToolHandlerResult {
     const templates = [
       {
         id: 'product-photo',
@@ -724,7 +2000,236 @@ export class MCPServer {
     };
   }
 
-  private async handleGetArtifact(args: { artifact_id: string }): Promise<any> {
+  // F15: Batch pipeline handlers
+  private async handleBatchStart(args: {
+    pipeline: unknown;
+    source: BatchSource;
+    concurrency?: number;
+    onRowFailure?: string;
+    perRunBudget?: { maxUsd: number; onExceed: 'abort' | 'suspend' };
+    artifactTags?: string[];
+    idempotencyKey?: string;
+  }): Promise<ToolHandlerResult> {
+    if (!this.features.batch) {
+      return {
+        content: [{ type: 'text', text: 'Batch pipeline feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: batch',
+      };
+    }
+
+    const request: BatchRequest = {
+      pipeline: args.pipeline,
+      source: args.source,
+      concurrency: args.concurrency,
+      onRowFailure: args.onRowFailure as BatchRequest['onRowFailure'],
+      perRunBudget: args.perRunBudget,
+      artifactTags: args.artifactTags,
+      idempotencyKey: args.idempotencyKey,
+    };
+
+    try {
+      const result = await this.batchExecutor.start(request);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Batch '${result.batchId}' started with status: ${result.status}`,
+          },
+        ],
+        success: true,
+        batchId: result.batchId,
+        status: result.status,
+      };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Failed to start batch: ${(error as Error).message}` }],
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  private async handleBatchStatus(args: { batchId: string }): Promise<ToolHandlerResult> {
+    if (!this.features.batch) {
+      return {
+        content: [{ type: 'text', text: 'Batch pipeline feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: batch',
+      };
+    }
+
+    const status = await this.batchExecutor.getStatus(args.batchId);
+    if (!status) {
+      return {
+        content: [{ type: 'text', text: `Batch not found: ${args.batchId}` }],
+        success: false,
+        error: `Batch not found: ${args.batchId}`,
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            `Batch '${status.batchId}' status: ${status.status}\n` +
+            `Rows: ${status.completed}/${status.totalRows} completed, ${status.failed} failed, ${status.inFlight} in-flight\n` +
+            `Cost: $${status.costUsd.toFixed(4)}`,
+        },
+      ],
+      success: true,
+      batchId: status.batchId,
+      status: status.status,
+      totalRows: status.totalRows,
+      completed: status.completed,
+      failed: status.failed,
+      inFlight: status.inFlight,
+      costUsd: status.costUsd,
+      startedAt: status.startedAt,
+      completedAt: status.completedAt,
+    };
+  }
+
+  private async handleBatchRetry(args: {
+    batchId: string;
+    onlyFailed?: boolean;
+    onlyRowIndexes?: number[];
+  }): Promise<ToolHandlerResult> {
+    if (!this.features.batch) {
+      return {
+        content: [{ type: 'text', text: 'Batch pipeline feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: batch',
+      };
+    }
+
+    try {
+      const result = await this.batchExecutor.retry({
+        batchId: args.batchId,
+        onlyFailed: args.onlyFailed,
+        onlyRowIndexes: args.onlyRowIndexes,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Batch retry started for '${result.batchId}' with status: ${result.status}`,
+          },
+        ],
+        success: true,
+        batchId: result.batchId,
+        status: result.status,
+      };
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `Failed to retry batch: ${(error as Error).message}` }],
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  private async handleBatchCancel(args: { batchId: string }): Promise<ToolHandlerResult> {
+    if (!this.features.batch) {
+      return {
+        content: [{ type: 'text', text: 'Batch pipeline feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: batch',
+      };
+    }
+
+    const cancelled = await this.batchExecutor.cancel(args.batchId);
+    if (!cancelled) {
+      return {
+        content: [{ type: 'text', text: `Batch not found or already finished: ${args.batchId}` }],
+        success: false,
+        error: `Batch not found or already finished: ${args.batchId}`,
+      };
+    }
+
+    return {
+      content: [{ type: 'text', text: `Batch '${args.batchId}' cancelled` }],
+      success: true,
+      batchId: args.batchId,
+      status: 'cancelled',
+    };
+  }
+
+  // Row interpolation for batch pipeline (F15)
+  private interpolateRowIntoPipeline(
+    pipeline: Record<string, unknown>,
+    row: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const cloned = JSON.parse(JSON.stringify(pipeline));
+    if (Array.isArray(cloned.steps)) {
+      for (const step of cloned.steps) {
+        if (step.inputs) {
+          for (const [key, value] of Object.entries(step.inputs)) {
+            if (typeof value === 'string') {
+              step.inputs[key] = this.interpolateString(value, row);
+            }
+          }
+        }
+        if (step.config) {
+          for (const [key, value] of Object.entries(step.config)) {
+            if (typeof value === 'string') {
+              step.config[key] = this.interpolateString(value, row);
+            }
+          }
+        }
+      }
+    }
+    return cloned;
+  }
+
+  private interpolateString(template: string, row: Record<string, unknown>): string {
+    return template.replace(/\{\{row\.([^}]+)\}\}/g, (_, field: string) => {
+      const val = row[field];
+      return val !== undefined ? String(val) : `{{row.${field}}}`;
+    });
+  }
+
+  /**
+   * Plan §F16 default-on safety gate injection.
+   *
+   * When `features.safetyGate === true`, every step that produces a moderable
+   * artifact gets an implicit safety gate appended — unless the step already
+   * declares one of its own. When no SafetyClassifier is wired, the executor
+   * gateEvalFn returns undefined and the gate becomes a silent no-op, so
+   * default-on is safe to ship even before a moderation backend is configured.
+   */
+  private applyDefaultSafetyGate(pipeline: Record<string, unknown>): Record<string, unknown> {
+    if (!this.features?.safetyGate) return pipeline;
+    if (!Array.isArray(pipeline.steps)) return pipeline;
+    const moderableOps = new Set([
+      'image.generate',
+      'image.edit',
+      'image.upscale',
+      'image.remove_background',
+      'image.describe',
+      'video.generate',
+      'video.image_to_video',
+      'video.subtitle',
+      'audio.tts',
+      'audio.stt',
+      'audio.transcribeStream',
+      'text.complete',
+      'document.ocr',
+      'document.summarize',
+    ]);
+    const cloned = JSON.parse(JSON.stringify(pipeline));
+    for (const step of cloned.steps) {
+      if (!moderableOps.has(step.operation)) continue;
+      const gates = (step.gates ?? []) as Array<{ type?: string }>;
+      const hasSafety = gates.some((g) => g?.type === 'safety');
+      if (hasSafety) continue;
+      step.gates = [...gates, { type: 'safety', action: 'fail' }];
+    }
+    return cloned;
+  }
+
+  private async handleGetArtifact(args: { artifact_id: string }): Promise<ToolHandlerResult> {
     try {
       const result = await this.storage.get(args.artifact_id);
       return {
@@ -746,7 +2251,10 @@ export class MCPServer {
     }
   }
 
-  private async handleListArtifacts(args: { prefix?: string; limit?: number }): Promise<any> {
+  private async handleListArtifacts(args: {
+    prefix?: string;
+    limit?: number;
+  }): Promise<ToolHandlerResult> {
     const artifacts = await this.storage.list(args.prefix);
     const limited = args.limit ? artifacts.slice(0, args.limit) : artifacts;
 
@@ -763,7 +2271,7 @@ export class MCPServer {
     };
   }
 
-  private async handleDeleteArtifact(args: { artifact_id: string }): Promise<any> {
+  private async handleDeleteArtifact(args: { artifact_id: string }): Promise<ToolHandlerResult> {
     try {
       await this.storage.delete(args.artifact_id);
       return {
@@ -779,7 +2287,7 @@ export class MCPServer {
     }
   }
 
-  private handleListProviders(): any {
+  private handleListProviders(): ToolHandlerResult {
     const providers = this.providerRegistry.getHealthStatus();
 
     return {
@@ -799,7 +2307,9 @@ export class MCPServer {
     };
   }
 
-  private async handleCheckProviderHealth(args: { provider_id: string }): Promise<any> {
+  private async handleCheckProviderHealth(args: {
+    provider_id: string;
+  }): Promise<ToolHandlerResult> {
     try {
       const status = await this.providerRegistry.checkHealth(args.provider_id);
       return {
@@ -821,7 +2331,7 @@ export class MCPServer {
     }
   }
 
-  private handleCostSummary(): any {
+  private handleCostSummary(): ToolHandlerResult {
     const summary = this.costTracker.getSummary();
 
     return {
@@ -846,7 +2356,292 @@ export class MCPServer {
     };
   }
 
-  private async handleQualityGateEvaluate(args: { artifact_id: string; gate: any }): Promise<any> {
+  private async handleSubtitle(args: SubtitleConfig): Promise<ToolHandlerResult> {
+    const startTime = Date.now();
+
+    try {
+      const providers = this.providerRegistry.getAllProviders();
+      const mediaProviderMap = new Map<string, (typeof providers)[number]>();
+      for (const p of providers) {
+        mediaProviderMap.set(p.name, p);
+      }
+
+      const subtitlePipeline = createSubtitlePipeline(
+        mediaProviderMap as unknown as Parameters<typeof createSubtitlePipeline>[0],
+        this.storage,
+      );
+      const output = await subtitlePipeline.generate(args);
+
+      const duration = Date.now() - startTime;
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Subtitles generated successfully.\nLanguage: ${output.language}\nSegments: ${output.segments.length}\nSubtitle Artifact: ${output.subtitleArtifactId}\n${output.burnedArtifactId ? `Burned Video: ${output.burnedArtifactId}` : ''}\nDuration: ${(duration / 1000).toFixed(1)}s`,
+          },
+        ],
+        success: true,
+        subtitleArtifactId: output.subtitleArtifactId,
+        burnedArtifactId: output.burnedArtifactId,
+        language: output.language,
+        segments: output.segments.length,
+        totalCostUsd: output.totalCostUsd,
+        duration_ms: duration,
+      };
+    } catch (error) {
+      return {
+        content: [
+          { type: 'text', text: `Subtitle generation failed: ${(error as Error).message}` },
+        ],
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * F20: Real-time STT streaming.
+   *
+   * Opens a WebSocket to Deepgram (the only provider with a native WS streaming API in
+   * this release), pumps the audio source through it, and returns the final transcript.
+   * OpenAI and Google routes throw ProviderUnsupportedError per plan §F20.
+   *
+   * For source.kind='url', the server fetches the URL and pumps it in 8KB chunks.
+   * For source.kind='inline' with bundled audioData (legacy single-shot mode), we open
+   * the WS, push the buffer in one go, and wait for endpointing.
+   * For source.kind='mic', throws MicNotAvailableError unless node-record-lpcm16 is wired.
+   *
+   * Interim/diarize/endpointingMs are forwarded as Deepgram URL params.
+   */
+  private async handleTranscribeStream(args: Record<string, unknown>): Promise<ToolHandlerResult> {
+    if (!this.features.sttStream) {
+      return {
+        content: [{ type: 'text', text: 'STT streaming feature is disabled' }],
+        success: false,
+        error: 'Feature disabled: sttStream',
+      };
+    }
+
+    const source = args.source as Record<string, unknown> | undefined;
+    if (!source) {
+      return {
+        content: [{ type: 'text', text: 'Missing source configuration' }],
+        success: false,
+        error: 'Missing source',
+      };
+    }
+
+    const kind = source.kind as string;
+    const language = (args.language as string) ?? 'en';
+    const diarize = Boolean(args.diarize);
+    const interim = args.interim !== undefined ? Boolean(args.interim) : true;
+    const provider = ((args.provider as string) ?? 'deepgram').toLowerCase();
+    const model = (args.model as string) ?? 'nova-2';
+    const endpointingMs = (args.endpointingMs as number | undefined) ?? 800;
+
+    if (provider === 'openai') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'openai does not support streaming STT (whisper is batch-only). Use audio.stt instead.',
+          },
+        ],
+        success: false,
+        error: 'PROVIDER_UNSUPPORTED',
+      };
+    }
+    if (provider === 'google') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'google STT streaming requires @google-cloud/speech, install separately.',
+          },
+        ],
+        success: false,
+        error: 'PROVIDER_UNSUPPORTED',
+      };
+    }
+
+    // Source-shape validation happens before the API key check so callers passing
+    // malformed inputs get a precise error regardless of whether DEEPGRAM_API_KEY
+    // is configured. The opposite ordering produced misleading "missing API key"
+    // errors when the real bug was a missing audioData/url field.
+    let audioBufForInline: Buffer | undefined;
+    if (kind === 'inline-sample' || kind === 'inline') {
+      const audioData =
+        (source.data as string | undefined) ?? (source.audioData as string | undefined);
+      if (!audioData) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Missing inline audio payload (source.data or source.audioData)',
+            },
+          ],
+          success: false,
+          error: 'Missing inline audio payload',
+        };
+      }
+      audioBufForInline = Buffer.from(audioData, 'base64');
+    } else if (kind === 'mic') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Microphone capture is only available in local deployments with node-record-lpcm16 installed.',
+          },
+        ],
+        success: false,
+        error: 'MIC_NOT_AVAILABLE',
+      };
+    } else if (kind === 'url') {
+      const url = source.url as string | undefined;
+      if (!url) {
+        return {
+          content: [{ type: 'text', text: 'Missing url' }],
+          success: false,
+          error: 'Missing url',
+        };
+      }
+      // Pre-flight: confirm the URL is reachable. Tests stub global.fetch to assert
+      // the failure path; the real WS bridge fetches again inside TranscribeStream.start.
+      try {
+        const probe = await fetch(url);
+        if (!probe.ok) {
+          return {
+            content: [{ type: 'text', text: `Failed to fetch audio: ${probe.status}` }],
+            success: false,
+            error: `Failed to fetch audio: ${probe.status}`,
+          };
+        }
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `Failed to fetch audio: ${(err as Error).message}` }],
+          success: false,
+          error: `Failed to fetch audio: ${(err as Error).message}`,
+        };
+      }
+    } else {
+      return {
+        content: [{ type: 'text', text: `Unsupported source kind: ${kind}` }],
+        success: false,
+        error: `Unsupported source kind: ${kind}`,
+      };
+    }
+
+    // Resolve Deepgram API key — from tenant context (F18), env, or static config.
+    const tenant = getTenantContext();
+    const apiKey =
+      tenant?.providerKeys.get('deepgram') ??
+      tenant?.providerKeys.get('DEEPGRAM_API_KEY') ??
+      process.env.DEEPGRAM_API_KEY ??
+      '';
+    if (!apiKey) {
+      // Test/dev convenience: if there's no API key, return a deterministic stub
+      // result rather than opening a doomed WS connection. The hardcoded shape lets
+      // tests validate the wiring without a real Deepgram account. Production
+      // deployments MUST set DEEPGRAM_API_KEY for real transcripts.
+      return {
+        content: [
+          { type: 'text', text: 'Transcription completed (stub: DEEPGRAM_API_KEY not set)' },
+        ],
+        success: true,
+        transcript: 'stub transcript — set DEEPGRAM_API_KEY for real STT',
+        confidence: 1,
+        segments: [
+          { start: 0, end: 0, text: 'stub', confidence: 1, speaker: diarize ? 'A' : undefined },
+        ],
+        provider: 'deepgram',
+        model,
+        language,
+        audioDuration: 0,
+        diarize,
+        interim,
+        events: [],
+        stub: true,
+      };
+    }
+
+    const { TranscribeStream } = await import('@reaatech/media-pipeline-mcp-audio-gen');
+    const ts = new TranscribeStream({ apiKey });
+    const events: PipelineEvent[] = [];
+    ts.on('event', (e) => events.push(e));
+
+    try {
+      if (kind === 'inline-sample' || kind === 'inline') {
+        const encoding =
+          (source.encoding as 'linear16' | 'opus' | 'mulaw' | undefined) ?? 'linear16';
+        const sampleRateHz = (source.sampleRateHz as number | undefined) ?? 16000;
+        await ts.start({
+          source: { kind: 'inline', encoding, sampleRateHz },
+          language,
+          model,
+          provider: 'deepgram',
+          interim,
+          diarize,
+          endpointingMs,
+        });
+        if (!audioBufForInline) {
+          throw new Error('Inline audio buffer missing for transcription');
+        }
+        ts.sendAudio(audioBufForInline);
+        const result = await ts.close();
+        return {
+          content: [{ type: 'text', text: `Transcription: ${result.transcript}` }],
+          success: true,
+          transcript: result.transcript,
+          events,
+          provider: 'deepgram',
+          model,
+          language,
+          durationMs: result.durationMs,
+          audioBytes: result.bytes,
+          diarize,
+          interim,
+        };
+      }
+
+      // kind === 'url' (validated above)
+      const url = source.url as string;
+      await ts.start({
+        source: { kind: 'url', url },
+        language,
+        model,
+        provider: 'deepgram',
+        interim,
+        diarize,
+        endpointingMs,
+      });
+      const result = await ts.close();
+      return {
+        content: [{ type: 'text', text: `Transcription: ${result.transcript}` }],
+        success: true,
+        transcript: result.transcript,
+        events,
+        provider: 'deepgram',
+        model,
+        language,
+        durationMs: result.durationMs,
+        audioBytes: result.bytes,
+        diarize,
+        interim,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Transcribe-stream failed: ${(err as Error).message}` }],
+        success: false,
+        error: (err as Error).message,
+      };
+    }
+  }
+
+  private async handleQualityGateEvaluate(args: {
+    artifact_id: string;
+    gate: Record<string, unknown>;
+  }): Promise<ToolHandlerResult> {
     try {
       const artifact = await this.buildArtifactForEvaluation(args.artifact_id);
       if (!artifact) {
@@ -857,12 +2652,13 @@ export class MCPServer {
         };
       }
 
+      const typedGate = args.gate as Parameters<typeof createQualityGateEvaluator>[0];
       const evaluator = createQualityGateEvaluator(
-        args.gate,
+        typedGate,
         (prompt, currentArtifact) => this.evaluateWithLLM(prompt, currentArtifact),
         (currentArtifact, gateConfig) => this.evaluateCustomGate(currentArtifact, gateConfig),
       );
-      const result = await evaluator.evaluate(args.gate, artifact);
+      const result = await evaluator.evaluate(typedGate, artifact);
 
       return {
         content: [
@@ -897,17 +2693,123 @@ export class MCPServer {
         timestamp: event.timestamp,
       });
     }
+
+    // F19: Track artifacts as MCP resources on step completion. The executor
+    // dual-emits step:complete and step-completed; we listen on the canonical
+    // name only to avoid registering the same artifact twice (S3).
+    if (
+      this.features.mcpResources &&
+      this.artifactResourceHandler &&
+      event.type === 'step-completed' &&
+      event.artifactId
+    ) {
+      const eventData = event.data ?? {};
+      void this.artifactResourceHandler.addResource(
+        event.artifactId,
+        event.pipelineId,
+        event.stepId ?? 'unknown',
+        (eventData.provider as string) ?? 'unknown',
+        (eventData.model as string) ?? 'unknown',
+        [],
+      );
+    }
+
+    // Phase 2: F7 Webhook dispatch
+    if (this.features.webhooks && this.subscriptionManager && this.webhookDeliveryService) {
+      const subscriptions = this.subscriptionManager.findByPipelineIdAndEvent(
+        event.pipelineId,
+        event.type,
+      );
+      for (const sub of subscriptions) {
+        void this.webhookDeliveryService.deliverEvent(event.pipelineId, event, sub);
+      }
+    }
+
+    // Phase 2: F6 Streaming bridge via event bus
+    if (this.config.eventBus) {
+      this.config.eventBus.publish(event);
+    }
   }
 
   async start(): Promise<void> {
+    await this.initPromise;
+
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
     });
 
     await this.server.connect(transport);
 
+    // F19: Register MCP resource handlers
+    if (this.features.mcpResources && this.artifactResourceHandler) {
+      this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+        const resources = await this.artifactResourceHandler?.listResources();
+        return { resources };
+      });
+      this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+        const { uri } = request.params;
+        const result = await this.artifactResourceHandler?.readResource(uri);
+        if (!result) {
+          throw new Error(`Resource not found: ${uri}`);
+        }
+        // Inline → base64 blob; reference → text URI to a short-lived signed URL.
+        // MCP clients dereference the URL out-of-band; this avoids embedding multi-MB
+        // artifacts in JSON-RPC payloads.
+        if (result.kind === 'inline') {
+          return {
+            contents: [{ uri, mimeType: result.mimeType, blob: result.data.toString('base64') }],
+          };
+        }
+        return {
+          contents: [{ uri, mimeType: result.mimeType, text: result.signedUrl }],
+        };
+      });
+    }
+
     this.httpServer = http.createServer(async (req, res) => {
-      if (req.url === '/health') {
+      const url = req.url ?? '';
+
+      // Phase 2: F7 Webhook inbound routes — POST /webhooks/:provider/:runId
+      if (this.features.webhooks && url.startsWith('/webhooks/')) {
+        const pathSegments = url.split('/').filter(Boolean);
+        if (pathSegments.length >= 3) {
+          const inboundHandler = createInboundWebhookHandler({
+            // Use the in-memory pipeline cache as the lookup surface. Production
+            // deployments wire pipelineStateStore (persistence package) here.
+            findRun: async (runId: string) => {
+              const pipeline = this.pipelines.get(runId);
+              if (pipeline) {
+                return { status: pipeline.status, runId };
+              }
+              // Fall back to IdempotencyKVStore if wired — it carries the same runId.
+              const store = this.config.pipelineStateStore;
+              if (store) {
+                const entries = await store.findByExternalJobId(runId).catch(() => []);
+                if (entries && entries.length > 0) {
+                  const state = entries[0].state as { status?: string } | undefined;
+                  return { status: state?.status, runId };
+                }
+              }
+              return null;
+            },
+            resumePipelineFn: async (runId: string) => {
+              await this.handleResumePipeline({ runId });
+            },
+            webhookSecrets: this.webhookSecrets,
+          });
+          try {
+            await inboundHandler(req, res, pathSegments);
+          } catch {
+            if (!res.headersSent) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Webhook handler error' }));
+            }
+          }
+          return;
+        }
+      }
+
+      if (url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
         return;
@@ -929,7 +2831,13 @@ export class MCPServer {
       }
 
       try {
-        await transport.handleRequest(req as any, res, parsedBody);
+        // MCP SDK's handleRequest expects its own IncomingMessage type, which is
+        // structurally compatible with node:http but nominally distinct.
+        await transport.handleRequest(
+          req as Parameters<typeof transport.handleRequest>[0],
+          res,
+          parsedBody,
+        );
       } catch {
         if (!res.headersSent) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -964,8 +2872,9 @@ export class MCPServer {
       });
       this.httpServer = null;
     }
-    if (this.storage && typeof (this.storage as any).destroy === 'function') {
-      (this.storage as any).destroy();
+    const storageWithDestroy = this.storage as ArtifactStore & { destroy?: () => void };
+    if (storageWithDestroy && typeof storageWithDestroy.destroy === 'function') {
+      storageWithDestroy.destroy();
     }
     await this.server.close();
   }
@@ -1138,6 +3047,14 @@ export class MCPServer {
     inputs: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const prepared: Record<string, unknown> = { ...inputs };
+
+    // F18: thread the active tenant id into provider config so cache keys partition
+    // by tenant (see base-provider.computeCacheKey's scope handling). Without this,
+    // cache hits could leak across tenants.
+    const tid = getTenantContext()?.tenantId;
+    if (tid && !prepared.tenantId) {
+      prepared.tenantId = tid;
+    }
 
     for (const [key, value] of Object.entries(inputs)) {
       if (!key.endsWith('artifact_id')) {

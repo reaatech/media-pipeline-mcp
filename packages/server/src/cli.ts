@@ -3,7 +3,7 @@
 import { loadConfig } from './config.js';
 import { MCPServer } from './mcp-server.js';
 
-async function main() {
+export async function main() {
   const config = loadConfig();
   const server = new MCPServer(config);
 
@@ -25,7 +25,17 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+export function runMain(): void {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}
+
+export function isMainModule(): boolean {
+  return process.argv[1]?.endsWith('cli.js') || process.argv[1]?.endsWith('cli.ts');
+}
+
+if (isMainModule()) {
+  runMain();
+}

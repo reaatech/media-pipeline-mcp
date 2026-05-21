@@ -1,0 +1,40 @@
+{
+  "name": "@reaatech/media-pipeline-mcp-keyvault",
+  "version": "0.3.0",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs --sourcemap",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reaatech/media-pipeline-mcp-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "@google-cloud/secret-manager": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-secrets-manager": { "optional": true },
+    "@google-cloud/secret-manager": { "optional": true }
+  },
+  "devDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "@google-cloud/secret-manager": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

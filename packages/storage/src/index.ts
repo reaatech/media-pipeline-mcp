@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './local-storage.js';
 export * from './s3-storage.js';
 export * from './gcs-storage.js';
+export { TenantScopedArtifactStore } from './tenant-scoped-store.js';
 
 import { GCSStorage } from './gcs-storage.js';
 import { LocalStorage } from './local-storage.js';
@@ -17,6 +18,6 @@ export function createStorage(config: StorageConfig): ArtifactStore {
     case 'gcs':
       return new GCSStorage(config.config);
     default:
-      throw new Error(`Unknown storage type: ${(config as any).type}`);
+      throw new Error(`Unknown storage type: ${(config as { type: string }).type}`);
   }
 }

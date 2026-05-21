@@ -269,7 +269,8 @@ export class AuditLogger {
   }
 
   private async exportToSumoLogic(events: AuditEvent[]): Promise<void> {
-    await fetch(this.config.sumoLogicEndpoint!, {
+    if (!this.config.sumoLogicEndpoint) return;
+    await fetch(this.config.sumoLogicEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: events.map((e) => JSON.stringify(e)).join('\n'),

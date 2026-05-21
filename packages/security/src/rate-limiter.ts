@@ -94,8 +94,8 @@ export class RateLimiter {
     }
 
     // Check operation-specific limit
-    if (operation && this.config.operationLimits?.has(operation)) {
-      const opLimit = this.config.operationLimits.get(operation)!;
+    const opLimit = operation ? this.config.operationLimits?.get(operation) : undefined;
+    if (operation && opLimit) {
       let opBucket = client.operations.get(operation);
 
       if (!opBucket) {
