@@ -636,8 +636,8 @@ importers:
   packages/security:
     dependencies:
       bcryptjs:
-        specifier: ^2.4.3
-        version: 2.4.3
+        specifier: ^3.0.3
+        version: 3.0.3
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
@@ -646,8 +646,8 @@ importers:
         version: 3.25.76
     devDependencies:
       '@types/bcryptjs':
-        specifier: ^2.4.6
-        version: 2.4.6
+        specifier: ^3.0.0
+        version: 3.0.0
       '@types/jsonwebtoken':
         specifier: ^9.0.10
         version: 9.0.10
@@ -2809,8 +2809,9 @@ packages:
   '@types/aws-lambda@8.10.161':
     resolution: {integrity: sha512-rUYdp+MQwSFocxIOcSsYSF3YYYC/uUpMbCY/mbO21vGqfrEYvNSoPyKYDj6RhXXpPfS0KstW9RwG3qXh9sL7FQ==}
 
-  '@types/bcryptjs@2.4.6':
-    resolution: {integrity: sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ==}
+  '@types/bcryptjs@3.0.0':
+    resolution: {integrity: sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg==}
+    deprecated: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.
 
   '@types/bunyan@1.8.11':
     resolution: {integrity: sha512-758fRH7umIMk5qt5ELmRMff4mLDlN+xyYzC+dkPTdKwbSkJFvz6xwyScrytPU0QIBbRRwbiE8/BIg8bpajerNQ==}
@@ -3092,8 +3093,9 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  bcryptjs@2.4.3:
-    resolution: {integrity: sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ==}
+  bcryptjs@3.0.3:
+    resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
+    hasBin: true
 
   better-path-resolve@1.0.0:
     resolution: {integrity: sha512-pbnl5XzGBdrFU/wT4jqmJVPn2B6UHPBOhzMQkY/SPUPB6QtUXtmBHBIwCbXJol93mOpGMnQyP/+BB19q04xj7g==}
@@ -8366,7 +8368,9 @@ snapshots:
 
   '@types/aws-lambda@8.10.161': {}
 
-  '@types/bcryptjs@2.4.6': {}
+  '@types/bcryptjs@3.0.0':
+    dependencies:
+      bcryptjs: 3.0.3
 
   '@types/bunyan@1.8.11':
     dependencies:
@@ -8694,7 +8698,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  bcryptjs@2.4.3: {}
+  bcryptjs@3.0.3: {}
 
   better-path-resolve@1.0.0:
     dependencies:
