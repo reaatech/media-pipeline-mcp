@@ -15,10 +15,9 @@ vi.mock('../config.js', () => ({
 }));
 
 vi.mock('../mcp-server.js', () => ({
-  MCPServer: vi.fn().mockImplementation(() => ({
-    start: mockStart,
-    stop: mockStop,
-  })),
+  MCPServer: vi.fn().mockImplementation(function() {
+    return { start: mockStart, stop: mockStop };
+  }),
 }));
 
 describe('CLI', () => {

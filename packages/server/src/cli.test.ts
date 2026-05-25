@@ -15,10 +15,9 @@ const mockStart = vi.fn();
 const mockStop = vi.fn();
 
 vi.mock('./mcp-server.js', () => ({
-  MCPServer: vi.fn(() => ({
-    start: mockStart,
-    stop: mockStop,
-  })),
+  MCPServer: vi.fn(function() {
+    return { start: mockStart, stop: mockStop };
+  }),
 }));
 
 function flushPromises() {
