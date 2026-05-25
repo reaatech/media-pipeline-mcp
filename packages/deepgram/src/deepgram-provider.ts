@@ -148,13 +148,13 @@ export class DeepgramProvider extends MediaProvider {
     const model = (input.params.model as string) || this.defaultModels.stt;
     const diarize = (input.params.diarize as boolean) || false;
 
-    const result = await this.client.listen.v1.media.transcribeFile(audioData, {
+    const result = (await this.client.listen.v1.media.transcribeFile(audioData, {
       model,
       language,
       smart_format: true,
       diarize: diarize ? true : undefined,
       utterances: diarize ? true : undefined,
-    }) as ListenV1Response | null;
+    })) as ListenV1Response | null;
 
     if (!result) {
       throw new Error('No transcription result received');
@@ -196,14 +196,14 @@ export class DeepgramProvider extends MediaProvider {
     const model = (input.params.model as string) || this.defaultModels.diarize;
 
     // Use Nova-2 with diarization enabled
-    const result = await this.client.listen.v1.media.transcribeFile(audioData, {
+    const result = (await this.client.listen.v1.media.transcribeFile(audioData, {
       model,
       language,
       smart_format: true,
       diarize: true,
       diarize_model: 'v2',
       utterances: true,
-    }) as ListenV1Response | null;
+    })) as ListenV1Response | null;
 
     if (!result) {
       throw new Error('No diarization result received');
