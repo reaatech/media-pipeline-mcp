@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createClient, type DeepgramClient, type SyncPrerecordedResponse } from '@deepgram/sdk';
+import { DeepgramClient, type ListenV1Response } from '@deepgram/sdk';
 import type {
   CostEstimate,
   PricingTable,
@@ -82,7 +82,7 @@ export class DeepgramProvider extends MediaProvider {
   constructor(config: DeepgramProviderConfig) {
     super();
     this.config = config;
-    this.client = createClient(config.apiKey);
+    this.client = new DeepgramClient({ apiKey: config.apiKey });
   }
 
   async healthCheck(): Promise<ProviderHealth> {
@@ -148,15 +148,14 @@ export class DeepgramProvider extends MediaProvider {
     const model = (input.params.model as string) || this.defaultModels.stt;
     const diarize = (input.params.diarize as boolean) || false;
 
-    const response = await this.client.listen.prerecorded.transcribeFile(audioData, {
+    const result = (await this.client.listen.v1.media.transcribeFile(audioData, {
       model,
       language,
       smart_format: true,
       diarize: diarize ? true : undefined,
       utterances: diarize ? true : undefined,
-    });
+    })) as ListenV1Response | null;
 
-    const result = response.result;
     if (!result) {
       throw new Error('No transcription result received');
     }
@@ -197,16 +196,15 @@ export class DeepgramProvider extends MediaProvider {
     const model = (input.params.model as string) || this.defaultModels.diarize;
 
     // Use Nova-2 with diarization enabled
-    const response = await this.client.listen.prerecorded.transcribeFile(audioData, {
+    const result = (await this.client.listen.v1.media.transcribeFile(audioData, {
       model,
       language,
       smart_format: true,
       diarize: true,
-      diarize_version: 'nova2',
+      diarize_model: 'v2',
       utterances: true,
-    });
+    })) as ListenV1Response | null;
 
-    const result = response.result;
     if (!result) {
       throw new Error('No diarization result received');
     }
@@ -245,7 +243,7 @@ export class DeepgramProvider extends MediaProvider {
   }
 
   private extractSegments(
-    result: SyncPrerecordedResponse,
+    result: ListenV1Response,
   ): Array<{ text: string; start: number; end: number; confidence: number }> {
     const words = result.results?.channels?.[0]?.alternatives?.[0]?.words || [];
     return words.map((w: { word?: string; start?: number; end?: number; confidence?: number }) => ({

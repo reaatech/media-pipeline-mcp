@@ -8,48 +8,48 @@ global.fetch = mockFetch;
 
 vi.mock('@deepgram/sdk', () => {
   return {
-    createClient: vi.fn().mockReturnValue({
+    DeepgramClient: vi.fn().mockImplementation(() => ({
       listen: {
-        prerecorded: {
-          transcribeFile: mockTranscribeFile,
+        v1: {
+          media: {
+            transcribeFile: mockTranscribeFile,
+          },
         },
       },
-    }),
+    })),
   };
 });
 
 function makeMockTranscribeResponse(overrides: Record<string, unknown> = {}) {
   return {
-    result: {
-      results: {
-        channels: [
-          {
-            alternatives: [
-              {
-                transcript: 'Hello world, this is a test.',
-                confidence: 0.95,
-                words: [
-                  { word: 'Hello', start: 0, end: 0.5, confidence: 0.98 },
-                  { word: 'world', start: 0.5, end: 1.0, confidence: 0.97 },
-                ],
-              },
-            ],
-          },
-        ],
-        utterances: [
-          { speaker: 'Speaker 1', transcript: 'Hello world', start: 0, end: 1, confidence: 0.95 },
-          {
-            speaker: 'Speaker 2',
-            transcript: 'This is a test',
-            start: 1,
-            end: 2,
-            confidence: 0.93,
-          },
-        ],
-      },
-      duration: 2.5,
-      ...overrides,
+    metadata: {},
+    results: {
+      channels: [
+        {
+          alternatives: [
+            {
+              transcript: 'Hello world, this is a test.',
+              confidence: 0.95,
+              words: [
+                { word: 'Hello', start: 0, end: 0.5, confidence: 0.98 },
+                { word: 'world', start: 0.5, end: 1.0, confidence: 0.97 },
+              ],
+            },
+          ],
+        },
+      ],
+      utterances: [
+        { speaker: 'Speaker 1', transcript: 'Hello world', start: 0, end: 1, confidence: 0.95 },
+        {
+          speaker: 'Speaker 2',
+          transcript: 'This is a test',
+          start: 1,
+          end: 2,
+          confidence: 0.93,
+        },
+      ],
     },
+    ...overrides,
   };
 }
 
@@ -114,7 +114,7 @@ describe('DeepgramProvider', () => {
     });
 
     it('should throw when no transcription result received', async () => {
-      mockTranscribeFile.mockResolvedValue({ result: null });
+      mockTranscribeFile.mockResolvedValue(null);
 
       await expect(
         provider.execute({
@@ -126,7 +126,7 @@ describe('DeepgramProvider', () => {
     });
 
     it('should throw when no diarization result received', async () => {
-      mockTranscribeFile.mockResolvedValue({ result: null });
+      mockTranscribeFile.mockResolvedValue(null);
 
       await expect(
         provider.execute({
@@ -205,7 +205,7 @@ describe('DeepgramProvider', () => {
 
   describe('extractSegments', () => {
     it('should extract word-level segments from result', () => {
-      const result = makeMockTranscribeResponse().result;
+      const result = makeMockTranscribeResponse();
       const segments = (
         provider as unknown as {
           extractSegments(
