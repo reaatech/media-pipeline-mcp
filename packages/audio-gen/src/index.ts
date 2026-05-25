@@ -1,21 +1,20 @@
-export { AudioGenOperations, createAudioGenOperations } from './audio-gen-operations.js';
 export type {
-  TTSConfig,
-  STTConfig,
   DiarizeConfig,
   IsolateConfig,
   MusicConfig,
   SoundEffectConfig,
+  STTConfig,
+  TTSConfig,
 } from './audio-gen-operations.js';
-
+export { AudioGenOperations, createAudioGenOperations } from './audio-gen-operations.js';
 export type {
   TranscribeStreamEvent,
+  TranscribeStreamOptions,
   TranscribeStreamRequest,
   WordTiming,
 } from './transcribe-stream.js';
 export {
-  TranscribeStream,
-  ProviderUnsupportedError,
   MicNotAvailableError,
+  ProviderUnsupportedError,
+  TranscribeStream,
 } from './transcribe-stream.js';
-export type { TranscribeStreamOptions } from './transcribe-stream.js';

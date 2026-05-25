@@ -297,12 +297,12 @@ export class AuditLogger {
   /**
    * Clean up resources
    */
-  destroy(): void {
+  async destroy(): Promise<void> {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
     }
     // Final flush
-    this.flush();
+    await this.flush();
   }
 }
 

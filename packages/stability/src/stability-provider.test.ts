@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StabilityProvider, createStabilityProvider } from './stability-provider.js';
 import type { StabilityConfig } from './stability-provider.js';
+import { createStabilityProvider, StabilityProvider } from './stability-provider.js';
 
 const mockConfig: StabilityConfig = {
   apiKey: 'test-api-key',

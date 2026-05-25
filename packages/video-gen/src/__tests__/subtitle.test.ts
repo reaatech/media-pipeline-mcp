@@ -2,8 +2,8 @@ import { Readable } from 'node:stream';
 import type { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type { ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SubtitlePipeline, createSubtitlePipeline } from '../subtitle.js';
 import type { BurnInOptions, SubtitleFormat, SubtitleSegment } from '../subtitle.js';
+import { createSubtitlePipeline, SubtitlePipeline } from '../subtitle.js';
 
 const mockSpawn = vi.hoisted(() => vi.fn());
 const mockMkdtempSync = vi.hoisted(() => vi.fn().mockReturnValue('/tmp/test-subtitles'));

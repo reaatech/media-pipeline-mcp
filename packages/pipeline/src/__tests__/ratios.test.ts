@@ -1,7 +1,7 @@
 import type { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type { ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RatioFanOutExecutor, createRatioFanOutExecutor } from '../ratios.js';
+import { createRatioFanOutExecutor, RatioFanOutExecutor } from '../ratios.js';
 
 describe('RatioFanOutExecutor', () => {
   let executor: RatioFanOutExecutor;

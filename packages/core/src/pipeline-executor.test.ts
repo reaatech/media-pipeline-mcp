@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArtifactNotFoundError, RunInProgressError, RunNotResumableError } from './errors.js';
 import { MockProvider } from './mock-provider.js';
-import { PipelineExecutor, createStepStateRecord } from './pipeline-executor.js';
+import { createStepStateRecord, PipelineExecutor } from './pipeline-executor.js';
 import type {
   PipelineDefinition,
   PipelineRunRecord,

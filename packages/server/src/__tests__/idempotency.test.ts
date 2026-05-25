@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  computeBodyHash,
   IdempotencyConflictError,
   IdempotencyMiddleware,
   InMemoryIdempotencyStore,
-  computeBodyHash,
 } from '../idempotency.js';
 
 describe('InMemoryIdempotencyStore', () => {

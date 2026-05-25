@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { type DeepgramClient, type SyncPrerecordedResponse, createClient } from '@deepgram/sdk';
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
+import { createClient, type DeepgramClient, type SyncPrerecordedResponse } from '@deepgram/sdk';
 import type {
   CostEstimate,
   PricingTable,
@@ -9,6 +8,7 @@ import type {
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import pricing from './pricing.json' with { type: 'json' };
 
 export interface DeepgramProviderConfig {

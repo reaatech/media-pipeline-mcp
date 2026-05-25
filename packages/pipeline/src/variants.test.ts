@@ -6,8 +6,8 @@ import type {
   VariantsConfig,
 } from '@reaatech/media-pipeline-mcp-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VariantsExecutor } from './variants.js';
 import type { VariantsExecutorContext } from './variants.js';
+import { VariantsExecutor } from './variants.js';
 
 describe('VariantsExecutor', () => {
   let executor: VariantsExecutor;

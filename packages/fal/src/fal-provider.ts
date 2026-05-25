@@ -1,5 +1,4 @@
 import { fal } from '@fal-ai/client';
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   CostEstimate,
   PricingTable,
@@ -8,6 +7,7 @@ import type {
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import pricing from './pricing.json' with { type: 'json' };
 
 export interface FalProviderConfig {

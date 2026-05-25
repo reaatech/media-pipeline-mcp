@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RouterContext } from './router.js';
 import {
   Router,
   RouterAllCandidatesFailedError,
   RouterFastestIneligibleError,
   RouterNoCandidatesError,
 } from './router.js';
-import type { RouterContext } from './router.js';
-import type { ProviderInput, RouteConfig } from './types.js';
-import type { CostEstimate } from './types.js';
+import type { CostEstimate, ProviderInput, RouteConfig } from './types.js';
 
 function makeContext(overrides?: Partial<RouterContext>): RouterContext {
   const defaultCtx: RouterContext = {

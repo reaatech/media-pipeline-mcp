@@ -1,11 +1,11 @@
 import { Readable } from 'node:stream';
 import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   CostEstimate,
   ProviderHealth,
   ProviderInput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DocumentExtractionOperations } from './document-extraction-operations.js';

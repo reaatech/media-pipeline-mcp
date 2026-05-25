@@ -1,9 +1,9 @@
 import {
-  type KeyObject,
   createHash,
   createPrivateKey,
   createSign,
   sign as cryptoSign,
+  type KeyObject,
 } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { ProvenanceSigningFailedError } from '@reaatech/media-pipeline-mcp-core';
@@ -349,7 +349,9 @@ async function signWithAwsKms(
   // for deployments that don't use KMS.
   const moduleName: string = '@aws-sdk/client-kms';
   let kms: {
-    KMSClient: new (opts: { region?: string }) => {
+    KMSClient: new (opts: {
+      region?: string;
+    }) => {
       send: (cmd: unknown) => Promise<{ Signature?: Uint8Array }>;
     };
     SignCommand: new (opts: {

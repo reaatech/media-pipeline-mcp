@@ -1,13 +1,13 @@
-import { type IncomingMessage, ServerResponse, createServer } from 'node:http';
-import { Socket } from 'node:net';
+import { createServer, type IncomingMessage, ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { Socket } from 'node:net';
 import { Readable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInboundWebhookHandler } from '../webhooks/inbound.js';
 import {
   SubscriptionManager,
-  WebhookDeliveryService,
   verifyWebhookSignature,
+  WebhookDeliveryService,
 } from '../webhooks/index.js';
 
 describe('SubscriptionManager', () => {

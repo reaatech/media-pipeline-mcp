@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Artifact, QualityGate } from '../types/index.js';
 import {
   CustomEvaluator,
+  createQualityGateEvaluator,
   DimensionCheckEvaluator,
   LLMJudgeEvaluator,
   ThresholdEvaluator,
-  createQualityGateEvaluator,
 } from './evaluator.js';
 
 describe('Quality Gate Evaluators', () => {

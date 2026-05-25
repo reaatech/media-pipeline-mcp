@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MediaProvider, defineProvider } from './base-provider.js';
+import { defineProvider, MediaProvider } from './base-provider.js';
 import type {
   CacheConfig,
   CostEstimate,

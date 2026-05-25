@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { LoudnessPreset } from '../gates/loudness.js';
 import {
+  createLoudnessGateEvaluator,
   LOUDNESS_PRESETS,
   LoudnessGateEvaluator,
-  createLoudnessGateEvaluator,
 } from '../gates/loudness.js';
-import type { LoudnessPreset } from '../gates/loudness.js';
 
 describe('LoudnessGateEvaluator', () => {
   afterEach(() => {

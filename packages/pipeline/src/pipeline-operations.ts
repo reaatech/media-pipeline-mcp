@@ -1,16 +1,16 @@
-import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
 import type {
   Artifact,
+  ArtifactRegistry,
   Pipeline,
   PipelineDefinition,
   PipelineEstimate,
+  PipelineEstimator,
+  PipelineExecutor,
   PipelineStatus,
   PipelineStep,
   VariantsConfig,
   VariantsStepOutput,
 } from '@reaatech/media-pipeline-mcp-core';
-import type { PipelineExecutor } from '@reaatech/media-pipeline-mcp-core';
-import type { PipelineEstimator } from '@reaatech/media-pipeline-mcp-core';
 import { v4 as uuidv4 } from 'uuid';
 import type { VariantsExecutor, VariantsExecutorContext } from './variants.js';
 
@@ -335,7 +335,7 @@ export class PipelineOperations {
         // Handle {{stepN.output}} references
         const refMatch = value.match(/\{\{step(\d+)\.output\}\}/);
         if (refMatch) {
-          const stepIndex = Number.parseInt(refMatch[1]) - 1;
+          const stepIndex = Number.parseInt(refMatch[1], 10) - 1;
           if (stepIndex >= 0 && stepIndex < artifacts.length) {
             interpolated = artifacts[stepIndex].id;
           }

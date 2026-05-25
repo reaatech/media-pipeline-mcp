@@ -1,7 +1,7 @@
-import { ArtifactRegistry, type PipelineExecutor } from '@reaatech/media-pipeline-mcp-core';
 import type { PipelineStep, VariantsConfig } from '@reaatech/media-pipeline-mcp-core';
+import { ArtifactRegistry, type PipelineExecutor } from '@reaatech/media-pipeline-mcp-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PipelineOperations, createPipelineOperations } from './pipeline-operations.js';
+import { createPipelineOperations, PipelineOperations } from './pipeline-operations.js';
 import { VariantsExecutor, type VariantsExecutorContext } from './variants.js';
 
 describe('PipelineOperations', () => {
