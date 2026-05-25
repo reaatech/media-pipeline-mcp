@@ -15,7 +15,8 @@ const mockStart = vi.fn();
 const mockStop = vi.fn();
 
 vi.mock('./mcp-server.js', () => ({
-  MCPServer: vi.fn(function() {
+  // biome-ignore lint/complexity/useArrowFunction: must use function expression for `new` constructor mock
+  MCPServer: vi.fn(function () {
     return { start: mockStart, stop: mockStop };
   }),
 }));
