@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ComfyUIProvider } from '../comfyui-provider.js';
 import type { ComfyUIConfig } from '../comfyui-provider.js';
+import { ComfyUIProvider } from '../comfyui-provider.js';
 
 const mockInput = { operation: '', params: {}, config: {} };
 

@@ -27,7 +27,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs --sourcemap",
     "test": "vitest run --passWithNoTests",
@@ -44,11 +46,21 @@
     "@azure/identity": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "c2pa-node": { "optional": true },
-    "@aws-sdk/client-kms": { "optional": true },
-    "@google-cloud/kms": { "optional": true },
-    "@azure/keyvault-keys": { "optional": true },
-    "@azure/identity": { "optional": true }
+    "c2pa-node": {
+      "optional": true
+    },
+    "@aws-sdk/client-kms": {
+      "optional": true
+    },
+    "@google-cloud/kms": {
+      "optional": true
+    },
+    "@azure/keyvault-keys": {
+      "optional": true
+    },
+    "@azure/identity": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

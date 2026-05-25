@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OpenAIProvider, createOpenAIProvider } from './openai-provider.js';
 import type { OpenAIConfig } from './openai-provider.js';
+import { createOpenAIProvider, OpenAIProvider } from './openai-provider.js';
 
 const mockConfig: OpenAIConfig = {
   apiKey: 'test-api-key',

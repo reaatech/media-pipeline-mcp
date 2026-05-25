@@ -8,6 +8,6 @@
  * - Content safety & moderation
  */
 
+export * from './audit-logger.js';
 export * from './auth-middleware.js';
 export * from './rate-limiter.js';
-export * from './audit-logger.js';

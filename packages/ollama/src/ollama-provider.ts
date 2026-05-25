@@ -1,4 +1,3 @@
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   CostEstimate,
   ProviderCacheConfig,
@@ -6,6 +5,7 @@ import type {
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 
 export interface OllamaConfig {
   baseUrl?: string;

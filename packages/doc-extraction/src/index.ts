@@ -1,10 +1,10 @@
-export {
-  DocumentExtractionOperations,
-  createDocumentExtractionOperations,
-} from './document-extraction-operations.js';
 export type {
-  OCRConfig,
-  TableExtractionConfig,
   FieldExtractionConfig,
+  OCRConfig,
   SummarizeConfig,
+  TableExtractionConfig,
+} from './document-extraction-operations.js';
+export {
+  createDocumentExtractionOperations,
+  DocumentExtractionOperations,
 } from './document-extraction-operations.js';

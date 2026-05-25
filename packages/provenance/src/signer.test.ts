@@ -8,8 +8,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 // `createPublicKey` is consumed via verify(...) below — keep the symbol exported.
 void createPublicKey;
+
 import { ProvenanceSigningFailedError } from '@reaatech/media-pipeline-mcp-core';
 import { ProvenanceSigner } from './signer.js';
 import type { ProvenanceManifest, SigningKeyConfig } from './types.js';

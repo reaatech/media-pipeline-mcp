@@ -1,19 +1,19 @@
 import { Readable } from 'node:stream';
 import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   CostEstimate,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   ArtifactMeta,
   ArtifactStore,
   StorageResult,
 } from '@reaatech/media-pipeline-mcp-storage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoGenOperations, createVideoGenOperations } from './video-gen-operations.js';
+import { createVideoGenOperations, VideoGenOperations } from './video-gen-operations.js';
 
 const mockSpawn = vi.hoisted(() => vi.fn());
 const mockMkdtempSync = vi.hoisted(() => vi.fn());

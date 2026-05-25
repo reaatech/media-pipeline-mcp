@@ -1,12 +1,12 @@
 import { Readable } from 'node:stream';
 import { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   CostEstimate,
   ProviderHealth,
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   ArtifactMeta,
   ArtifactStore,

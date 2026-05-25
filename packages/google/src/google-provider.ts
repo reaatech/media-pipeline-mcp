@@ -48,6 +48,7 @@ interface DocumentAITableData {
   headers: string[];
   rows: string[][];
 }
+
 import type {
   CostEstimate,
   PricingTable,

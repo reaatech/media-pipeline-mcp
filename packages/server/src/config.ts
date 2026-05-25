@@ -218,7 +218,7 @@ export function loadConfig(env?: NodeJS.ProcessEnv): ServerConfig {
         config: {
           basePath: environment.STORAGE_PATH || './artifacts',
           ttl: environment.STORAGE_TTL
-            ? Number.parseInt(environment.STORAGE_TTL) * 1000
+            ? Number.parseInt(environment.STORAGE_TTL, 10) * 1000
             : undefined,
           serveHttp: environment.STORAGE_SERVE_HTTP === 'true',
         },
@@ -247,7 +247,7 @@ export function loadConfig(env?: NodeJS.ProcessEnv): ServerConfig {
   };
 
   const config: ServerConfig = {
-    port: Number.parseInt(environment.PORT || '8080'),
+    port: Number.parseInt(environment.PORT || '8080', 10),
     host: environment.HOST || '0.0.0.0',
     logLevel: (environment.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug') || 'info',
     storage: storageConfig,
@@ -343,9 +343,12 @@ export function loadConfig(env?: NodeJS.ProcessEnv): ServerConfig {
       environment.RATE_LIMIT_ENABLED !== 'false'
         ? {
             enabled: true,
-            clientRequestsPerMinute: Number.parseInt(environment.RATE_LIMIT_RPM || '60'),
-            clientBurstSize: Number.parseInt(environment.RATE_LIMIT_BURST || '10'),
-            expensiveOperationsPerMinute: Number.parseInt(environment.EXPENSIVE_OPS_RPM || '10'),
+            clientRequestsPerMinute: Number.parseInt(environment.RATE_LIMIT_RPM || '60', 10),
+            clientBurstSize: Number.parseInt(environment.RATE_LIMIT_BURST || '10', 10),
+            expensiveOperationsPerMinute: Number.parseInt(
+              environment.EXPENSIVE_OPS_RPM || '10',
+              10,
+            ),
           }
         : undefined,
     budget:

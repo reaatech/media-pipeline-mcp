@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OllamaProvider } from '../ollama-provider.js';
 import type { OllamaConfig } from '../ollama-provider.js';
+import { OllamaProvider } from '../ollama-provider.js';
 
 type OllamaProviderForTest = {
   baseUrl: string;

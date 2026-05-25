@@ -1,7 +1,7 @@
 import { SafetyProviderUnavailableError } from '@reaatech/media-pipeline-mcp-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SafetyGateEvaluator } from '../gates/safety.js';
 import type { SafetyArtifact, SafetyCategory, SafetyClassifier } from '../gates/safety.js';
+import { SafetyGateEvaluator } from '../gates/safety.js';
 
 /**
  * Test helper: a stub classifier whose scores are controlled per-test.

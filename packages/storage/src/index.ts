@@ -1,8 +1,8 @@
-export * from './types.js';
+export * from './gcs-storage.js';
 export * from './local-storage.js';
 export * from './s3-storage.js';
-export * from './gcs-storage.js';
 export { TenantScopedArtifactStore } from './tenant-scoped-store.js';
+export * from './types.js';
 
 import { GCSStorage } from './gcs-storage.js';
 import { LocalStorage } from './local-storage.js';

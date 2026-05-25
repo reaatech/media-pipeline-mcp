@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 import { PipelineValidator, type ProviderAvailability } from './pipeline-validator.js';
-import { PipelineDefinitionSchema } from './types/index.js';
 import type { PipelineDefinition } from './types/index.js';
+import { PipelineDefinitionSchema } from './types/index.js';
 
 // Mock ProviderAvailability
 class MockProviderAvailability implements ProviderAvailability {

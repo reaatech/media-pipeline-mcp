@@ -3,7 +3,6 @@ import {
   WorkflowExpiredError,
   WorkflowNotFoundError,
 } from '@reaatech/media-pipeline-mcp-core';
-import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 import type {
   CostEstimate,
   ProviderCacheConfig,
@@ -11,6 +10,7 @@ import type {
   ProviderInput,
   ProviderOutput,
 } from '@reaatech/media-pipeline-mcp-provider-core';
+import { MediaProvider } from '@reaatech/media-pipeline-mcp-provider-core';
 
 import fluxText2ImgWorkflow from './workflows/flux-text2img.json' with { type: 'json' };
 import sdxlImg2ImgWorkflow from './workflows/sdxl-img2img.json' with { type: 'json' };

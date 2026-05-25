@@ -94,7 +94,7 @@ export class SafetyGateEvaluator {
     let classification: Awaited<ReturnType<SafetyClassifier['classify']>>;
     try {
       classification = await classifier.classify(artifact);
-    } catch (err) {
+    } catch (_err) {
       throw new SafetyProviderUnavailableError();
     }
 

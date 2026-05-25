@@ -1,5 +1,5 @@
-import { ContextRefTypeError, ContextRefUnknownError } from '@reaatech/media-pipeline-mcp-core';
 import type { RunContext } from '@reaatech/media-pipeline-mcp-core';
+import { ContextRefTypeError, ContextRefUnknownError } from '@reaatech/media-pipeline-mcp-core';
 import { describe, expect, it } from 'vitest';
 import { ContextResolver } from '../run-context.js';
 

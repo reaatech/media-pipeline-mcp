@@ -1,2 +1,2 @@
-export { ImageEditOperations, createImageEditOperations } from './image-edit-operations.js';
-export type { ResizeConfig, CropConfig, CompositeConfig } from './image-edit-operations.js';
+export type { CompositeConfig, CropConfig, ResizeConfig } from './image-edit-operations.js';
+export { createImageEditOperations, ImageEditOperations } from './image-edit-operations.js';

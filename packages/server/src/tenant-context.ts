@@ -37,9 +37,10 @@ export type TenantResolutionStrategy =
   | { kind: 'static'; tenantId: string }
   | {
       kind: 'custom';
-      resolver: (request: { headers: Record<string, string>; body?: unknown }) => Promise<
-        string | null
-      >;
+      resolver: (request: {
+        headers: Record<string, string>;
+        body?: unknown;
+      }) => Promise<string | null>;
     };
 
 export interface MultiTenantConfig {

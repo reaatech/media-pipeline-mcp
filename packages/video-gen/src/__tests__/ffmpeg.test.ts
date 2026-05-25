@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FfmpegWrapper } from '../ffmpeg.js';
 import type { BurnInOptions, LoudnessMeasurement, LoudnessTarget } from '../ffmpeg.js';
+import { FfmpegWrapper } from '../ffmpeg.js';
 
 const mockSpawn = vi.hoisted(() => vi.fn());
 

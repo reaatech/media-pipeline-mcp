@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BatchExecutor, interpolateRow } from '../batch.js';
 import type { BatchReportRow, RowExecutorResult } from '../batch.js';
+import { BatchExecutor, interpolateRow } from '../batch.js';
 
 describe('BatchExecutor', () => {
   afterEach(() => {

@@ -1,5 +1,4 @@
-import type { ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
-import type { Artifact } from '@reaatech/media-pipeline-mcp-core';
+import type { Artifact, ArtifactRegistry } from '@reaatech/media-pipeline-mcp-core';
 import type { MediaProvider, ProviderInput } from '@reaatech/media-pipeline-mcp-provider-core';
 import type { ArtifactMeta, ArtifactStore } from '@reaatech/media-pipeline-mcp-storage';
 import { v4 as uuidv4 } from 'uuid';

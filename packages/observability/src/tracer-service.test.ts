@@ -1,4 +1,4 @@
-import { SpanStatusCode, context, trace } from '@opentelemetry/api';
+import { context, SpanStatusCode, trace } from '@opentelemetry/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TracerService } from './tracer-service.js';

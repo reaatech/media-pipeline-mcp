@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MaxRetriesExceededError, RetryPolicy, createRetryPolicy } from './retry-policy.js';
+import { createRetryPolicy, MaxRetriesExceededError, RetryPolicy } from './retry-policy.js';
 
 describe('RetryPolicy', () => {
   describe('default values', () => {
