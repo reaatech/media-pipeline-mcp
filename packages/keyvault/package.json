@@ -38,7 +38,7 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-secrets-manager": "^3.0.0",
-    "@google-cloud/secret-manager": "^5.0.0"
+    "@google-cloud/secret-manager": "^6.1.2"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-secrets-manager": { "optional": true },
@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-secrets-manager": "^3.0.0",
-    "@google-cloud/secret-manager": "^5.0.0",
+    "@google-cloud/secret-manager": "^6.1.2",
     "@types/node": "^20.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
