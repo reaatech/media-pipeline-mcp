@@ -19,8 +19,8 @@ describe('AuditLogger', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    logger?.destroy();
+  afterEach(async () => {
+    await logger?.destroy();
   });
 
   it('should log events with required fields', () => {
@@ -475,7 +475,7 @@ describe('AuditLogger', () => {
       metadata: {},
     });
 
-    logger.destroy();
+    await logger.destroy();
     await flushPromises();
     expect(fetchMock).toHaveBeenCalled();
 
