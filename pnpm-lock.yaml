@@ -268,8 +268,8 @@ importers:
   packages/google:
     dependencies:
       '@google-cloud/aiplatform':
-        specifier: ^3.0.0
-        version: 3.35.0(encoding@0.1.13)
+        specifier: ^6.8.0
+        version: 6.8.0
       '@google-cloud/documentai':
         specifier: ^9.6.1
         version: 9.6.1
@@ -1488,9 +1488,9 @@ packages:
     resolution: {integrity: sha512-c3AVeH31OioiI2J1BfW8Cryi1DhUYldnY3X35nv6xLMq3fU2NQOo+eYaR5mL2O8MoHHh+HzXdQuIyanIyeq+ug==}
     engines: {node: '>=18.0.0'}
 
-  '@google-cloud/aiplatform@3.35.0':
-    resolution: {integrity: sha512-Eo+ckr1KbTxAOew9P+MeeR0aQXeW5PeOzrSM1JyGny/SGKejwX/RcGWSFpeapnlegTfI9N9xJeUeo3M+XBOeFg==}
-    engines: {node: '>=14.0.0'}
+  '@google-cloud/aiplatform@6.8.0':
+    resolution: {integrity: sha512-uN1azwaREjQA26V+Wx8IsAFMBfNjtBYlQ+TKoNXnzEmQwGq097PIw3vaRQPSZHmJqiNYxJ1/BPZ6glCZBRNe+A==}
+    engines: {node: '>=18'}
 
   '@google-cloud/common@5.0.2':
     resolution: {integrity: sha512-V7bmBKYQyu0eVG2BFejuUjlBt+zrya6vtsKdY+JxMM/dNntPF41vZ9+LhOshEUH01zOHEqBSvI7Dad7ZS6aUeA==}
@@ -4287,10 +4287,6 @@ packages:
   lodash.startcase@4.4.0:
     resolution: {integrity: sha512-+WKqsK294HMSc2jEbNgpHpd0JfIBhp7rEV4aqXWqFr6AlXov+SlcgB1Fv01y2kGe3Gc8nMW7VA0SrGuSkRfIEg==}
 
-  long@1.1.5:
-    resolution: {integrity: sha512-TU6nAF5SdasnTr28c7e74P4Crbn9o3/zwo1pM22Wvg2i2vlZ4Eelxwu4QT7j21z0sDBlJDEnEZjXTZg2J8WJrg==}
-    engines: {node: '>=0.6'}
-
   long@5.3.2:
     resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
 
@@ -4774,9 +4770,6 @@ packages:
   proto3-json-serializer@3.0.4:
     resolution: {integrity: sha512-E1sbAYg3aEbXrq0n1ojJkRHQJGE1kaE/O6GLA94y8rnJBfgvOPTOd1b9hOceQK1FFZI9qMh1vBERCyO2ifubcw==}
     engines: {node: '>=18'}
-
-  protobuf.js@1.1.2:
-    resolution: {integrity: sha512-USO7Xus/pzPw549M1TguiyoOrKEhm9VMXv+CkDufcjMC8Rd7EPbxeRQPEjCV8ua1tm0k7z9xHkogcxovZogWdA==}
 
   protobufjs@7.6.0:
     resolution: {integrity: sha512-LtESOsMPTZgyYtwxhvdgdjGL0HmXEaRA/hVD6sol4zA60hVXXXP/SGmxnqDbgGE8gy7pYex7cym+5vYPcmaXBQ==}
@@ -6771,12 +6764,10 @@ snapshots:
       eventsource-parser: 1.1.2
       robot3: 0.4.1
 
-  '@google-cloud/aiplatform@3.35.0(encoding@0.1.13)':
+  '@google-cloud/aiplatform@6.8.0':
     dependencies:
-      google-gax: 4.6.1(encoding@0.1.13)
-      protobuf.js: 1.1.2
+      google-gax: 5.0.6
     transitivePeerDependencies:
-      - encoding
       - supports-color
 
   '@google-cloud/common@5.0.2(encoding@0.1.13)':
@@ -10100,8 +10091,6 @@ snapshots:
 
   lodash.startcase@4.4.0: {}
 
-  long@1.1.5: {}
-
   long@5.3.2: {}
 
   loupe@3.2.1: {}
@@ -10561,10 +10550,6 @@ snapshots:
   proto3-json-serializer@3.0.4:
     dependencies:
       protobufjs: 7.6.1
-
-  protobuf.js@1.1.2:
-    dependencies:
-      long: 1.1.5
 
   protobufjs@7.6.0:
     dependencies:
