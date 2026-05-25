@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^3.0.0",
-    "@google-cloud/documentai": "^4.0.0",
+    "@google-cloud/documentai": "^9.6.1",
     "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
