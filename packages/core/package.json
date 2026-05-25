@@ -39,7 +39,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/node": "^20.11.24",
+    "@types/node": "^25.9.1",
     "@types/uuid": "^9.0.8",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
