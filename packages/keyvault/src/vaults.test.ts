@@ -233,9 +233,9 @@ describe('GcpSecretManagerKeyVault', () => {
   const mockAccessSecretVersion = vi.hoisted(() => vi.fn());
 
   vi.mock('@google-cloud/secret-manager', () => ({
-    SecretManagerServiceClient: vi.fn(() => ({
-      accessSecretVersion: mockAccessSecretVersion,
-    })),
+    SecretManagerServiceClient: vi.fn(function () {
+      return { accessSecretVersion: mockAccessSecretVersion };
+    }),
   }));
 
   beforeEach(() => {
