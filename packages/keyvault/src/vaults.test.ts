@@ -138,10 +138,10 @@ describe('AwsSecretsManagerKeyVault', () => {
   const mockSend = vi.hoisted(() => vi.fn());
 
   vi.mock('@aws-sdk/client-secrets-manager', () => ({
-    SecretsManagerClient: vi.fn(function () {
+    SecretsManagerClient: vi.fn(function (this: any) {
       this.send = mockSend;
     }),
-    GetSecretValueCommand: vi.fn(function (args: unknown) {
+    GetSecretValueCommand: vi.fn(function (this: any, args: unknown) {
       Object.assign(this, args);
     }),
   }));
