@@ -22,7 +22,9 @@
       "includes": ["**/*.test.ts", "**/__tests__/**/*.ts"],
       "linter": {
         "rules": {
-          "suspicious": {},
+          "suspicious": {
+            "noExplicitAny": "off"
+          },
           "style": {
             "noNonNullAssertion": "off"
           },
