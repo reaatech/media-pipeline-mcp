@@ -129,6 +129,10 @@ describe('RateLimiter', () => {
   });
 
   describe('getHeaders', () => {
+    beforeEach(() => {
+      rateLimiter = new RateLimiter(baseConfig);
+    });
+
     it('should return correct rate limit headers', () => {
       const result = rateLimiter.checkLimit('client1');
       const headers = rateLimiter.getHeaders(result);
