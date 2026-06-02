@@ -282,7 +282,6 @@ type CallHandler = (
     params: { name: string; arguments?: Record<string, unknown>; _meta?: Record<string, unknown> };
   },
   extra?: Record<string, unknown>,
-  // biome-ignore lint/suspicious/noExplicitAny: dynamic CallToolResult shape varies per tool
 ) => Promise<Record<string, any>>;
 
 type ListToolsHandler = () => Promise<{ tools: ToolInfo[] }>;

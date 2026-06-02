@@ -138,8 +138,12 @@ describe('AwsSecretsManagerKeyVault', () => {
   const mockSend = vi.hoisted(() => vi.fn());
 
   vi.mock('@aws-sdk/client-secrets-manager', () => ({
-    SecretsManagerClient: vi.fn().mockImplementation(() => ({ send: mockSend })),
-    GetSecretValueCommand: vi.fn().mockImplementation((args: unknown) => args),
+    SecretsManagerClient: vi.fn(function (this: any) {
+      this.send = mockSend;
+    }),
+    GetSecretValueCommand: vi.fn(function (this: any, args: unknown) {
+      Object.assign(this, args);
+    }),
   }));
 
   beforeEach(() => {
@@ -229,9 +233,9 @@ describe('GcpSecretManagerKeyVault', () => {
   const mockAccessSecretVersion = vi.hoisted(() => vi.fn());
 
   vi.mock('@google-cloud/secret-manager', () => ({
-    SecretManagerServiceClient: vi.fn().mockImplementation(() => ({
-      accessSecretVersion: mockAccessSecretVersion,
-    })),
+    SecretManagerServiceClient: vi.fn(function () {
+      return { accessSecretVersion: mockAccessSecretVersion };
+    }),
   }));
 
   beforeEach(() => {
