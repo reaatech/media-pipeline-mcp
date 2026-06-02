@@ -8,15 +8,17 @@ global.fetch = mockFetch;
 
 vi.mock('@deepgram/sdk', () => {
   return {
-    DeepgramClient: vi.fn().mockImplementation(() => ({
-      listen: {
-        v1: {
-          media: {
-            transcribeFile: mockTranscribeFile,
+    DeepgramClient: vi.fn(function () {
+      return {
+        listen: {
+          v1: {
+            media: {
+              transcribeFile: mockTranscribeFile,
+            },
           },
         },
-      },
-    })),
+      };
+    }),
   };
 });
 
