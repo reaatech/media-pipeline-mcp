@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/media-pipeline-mcp-server",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP server exposing 30+ media operations via StreamableHTTP — provider routing, cost tracking, pipeline execution",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
