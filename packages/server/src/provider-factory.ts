@@ -21,9 +21,7 @@ export interface ProviderConfig {
   config?: Record<string, unknown>;
 }
 
-type MediaProviderConstructor = new (
-  config: Record<string, unknown>,
-) => {
+interface MediaProviderInstance {
   name: string;
   supportedOperations: string[];
   execute(
@@ -38,7 +36,14 @@ type MediaProviderConstructor = new (
     durationMs?: number;
   }>;
   healthCheck(): Promise<{ healthy: boolean; latency?: number; error?: string }>;
-};
+  estimateCost?: (input: {
+    operation: string;
+    params: Record<string, unknown>;
+    config: Record<string, unknown>;
+  }) => Promise<{ costUsd: number; estimatedDurationMs?: number; currency?: string }>;
+}
+
+type MediaProviderConstructor = new (config: Record<string, unknown>) => MediaProviderInstance;
 
 interface ProviderInfo {
   ctor: MediaProviderConstructor;
@@ -122,25 +127,15 @@ export async function createProvider(
 
   try {
     const mediaProvider = new providerInfo.ctor(resolvedConfig);
-    // MediaProvider subclasses expose estimateCost; mock providers and minimal stubs may not.
-    // Optional chain: only thread it through if present so the adapter's fallback path applies.
-    const mediaAny = mediaProvider as unknown as {
-      estimateCost?: (input: {
-        operation: string;
-        params: Record<string, unknown>;
-        config: Record<string, unknown>;
-      }) => Promise<{ costUsd: number; estimatedDurationMs?: number; currency?: string }>;
-    };
+    const providerEstimate = mediaProvider.estimateCost;
     return new ProviderAdapter({
       name: mediaProvider.name,
       supportedOperations: mediaProvider.supportedOperations,
       execute: (operation, params, config) => mediaProvider.execute(operation, params, config),
       healthCheck: () => mediaProvider.healthCheck(),
-      estimateCost: mediaAny.estimateCost
+      estimateCost: providerEstimate
         ? async (input) => {
-            const fn = mediaAny.estimateCost;
-            if (!fn) throw new Error('estimateCost unavailable');
-            const est = await fn(input);
+            const est = await providerEstimate(input);
             return { costUsd: est.costUsd, estimatedDurationMs: est.estimatedDurationMs };
           }
         : undefined,

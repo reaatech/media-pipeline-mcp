@@ -1,3 +1,5 @@
+import type { PipelineDefinition } from '@reaatech/media-pipeline-mcp-core';
+
 export type BatchSource =
   | {
       type: 'csv';
@@ -18,30 +20,30 @@ export type BatchSource =
  * Exported because the batch executor uses it AND consumers (server, tests) want to
  * preview the resolved pipeline without running it.
  */
-export function interpolateRow(pipeline: unknown, row: Record<string, unknown>): unknown {
+export function interpolateRow<T>(pipeline: T, row: Record<string, unknown>): T {
   if (typeof pipeline === 'string') {
     return pipeline.replace(/\{\{([^}]+)\}\}/g, (_match, key: string) => {
       const k = key.trim();
       const v = row[k];
       if (v === undefined || v === null) return _match;
       return typeof v === 'string' ? v : String(v);
-    });
+    }) as T;
   }
   if (Array.isArray(pipeline)) {
-    return pipeline.map((item) => interpolateRow(item, row));
+    return pipeline.map((item) => interpolateRow(item, row)) as T;
   }
   if (pipeline && typeof pipeline === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(pipeline as Record<string, unknown>)) {
       out[k] = interpolateRow(v, row);
     }
-    return out;
+    return out as T;
   }
   return pipeline;
 }
 
 export interface BatchRequest {
-  pipeline: unknown;
+  pipeline: PipelineDefinition;
   source: BatchSource;
   concurrency?: number;
   onRowFailure?: 'continue' | 'stop' | 'retry-once';
@@ -106,7 +108,7 @@ export class BatchExecutor {
     { request: BatchRequest; status: BatchStatus; rows: BatchReportRow[] }
   > = new Map();
   private runExecutor?: (
-    pipeline: unknown,
+    pipeline: PipelineDefinition,
     row: Record<string, unknown>,
     batchId: string,
   ) => Promise<RowExecutorResult>;
@@ -114,7 +116,7 @@ export class BatchExecutor {
 
   setRowExecutor(
     fn: (
-      pipeline: unknown,
+      pipeline: PipelineDefinition,
       row: Record<string, unknown>,
       batchId: string,
     ) => Promise<RowExecutorResult>,

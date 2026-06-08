@@ -28,7 +28,9 @@
       "@reaatech/media-pipeline-mcp-provenance": ["./packages/provenance/src/index.ts"],
       "@reaatech/media-pipeline-mcp-keyvault": ["./packages/keyvault/src/index.ts"],
       "@reaatech/media-pipeline-mcp-meshy": ["./packages/meshy/src/index.ts"],
-      "@reaatech/media-pipeline-mcp-luma": ["./packages/luma/src/index.ts"]
+      "@reaatech/media-pipeline-mcp-luma": ["./packages/luma/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-comfyui": ["./packages/comfyui/src/index.ts"],
+      "@reaatech/media-pipeline-mcp-ollama": ["./packages/ollama/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*"]
