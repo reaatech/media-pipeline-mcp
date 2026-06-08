@@ -37,12 +37,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@google-cloud/aiplatform": "^6.8.0",
-    "@google-cloud/documentai": "^9.6.1",
+    "@google-cloud/aiplatform": "^6.8.1",
+    "@google-cloud/documentai": "^9.6.2",
     "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.2",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"
