@@ -21,9 +21,12 @@ import type {
   PipelineRunRecord,
   PipelineStateStore,
   PipelineStep,
+  QualityGate,
   QualityGateResult,
+  RouteConfig,
   RunContext,
   StepStateRecord,
+  VariantsConfig,
 } from './types/index.js';
 
 // S3: legacy → spec-canonical event-name map. Both forms are valid (see
@@ -42,9 +45,20 @@ const LEGACY_TO_SPEC_EVENT: Partial<Record<PipelineEvent['type'], PipelineEvent[
 // ─── Injection callback types for Phase 2 features ──────────────────────────
 // These are injected via PipelineExecutorOptions to avoid circular deps
 // between @reaatech/media-pipeline-mcp-core and the feature packages.
+// The core types (RouteConfig, VariantsConfig, QualityGate) live in this
+// package's types/index.ts; the RatioFanOutConfig is duplicated inline to
+// avoid needing a @reaatech/media-pipeline-mcp-pipeline dep here.
+
+/** Extended gate type that includes runtime-injected gate kinds (safety, loudness). */
+type StepGate = {
+  type: string;
+  config?: Record<string, unknown>;
+  action?: string;
+  maxRetries?: number;
+};
 
 export interface RouteStepParams {
-  route: unknown;
+  route: RouteConfig;
   operation: string;
   resolvedInputs: Record<string, unknown>;
   stepConfig: Record<string, unknown>;
@@ -58,7 +72,7 @@ export type RouteStepFn = (
 ) => Promise<{ artifact: Artifact; providerName: string } | null>;
 
 export interface VariantsStepParams {
-  variants: unknown;
+  variants: VariantsConfig;
   step: PipelineStep;
   resolvedInputs: Record<string, unknown>;
   pipelineId: string;
@@ -67,8 +81,16 @@ export interface VariantsStepParams {
 
 export type VariantsStepFn = (params: VariantsStepParams) => Promise<{ artifact: Artifact } | null>;
 
+export interface RatioFanOutConfig {
+  ratios: string[];
+  fallback?: 'smart-crop' | 'fail' | 'pad';
+  reuseLargest?: boolean;
+  faceAware?: boolean;
+  padColor?: string;
+}
+
 export interface RatiosStepParams {
-  ratios: unknown;
+  ratios: RatioFanOutConfig;
   operation: string;
   resolvedInputs: Record<string, unknown>;
   stepConfig: Record<string, unknown>;
@@ -78,7 +100,7 @@ export interface RatiosStepParams {
 export type RatiosStepFn = (params: RatiosStepParams) => Promise<{ artifact: Artifact } | null>;
 
 export interface GateEvalParams {
-  gate: unknown;
+  gate: QualityGate | StepGate;
   artifact: Artifact;
   artifactUri: string;
   stepId: string;
@@ -819,7 +841,7 @@ export class PipelineExecutor {
       perStep.push(stepEntry);
 
       // Check for router spread warning
-      const stepRoute = (step as { route?: { candidates?: unknown[] } }).route;
+      const stepRoute = step.route;
       if (stepRoute?.candidates && stepRoute.candidates.length > 1) {
         warnings.push({
           stepId: step.id,
@@ -1006,7 +1028,7 @@ export class PipelineExecutor {
         }
 
         // Run additional gates array if configured
-        const gates = (step as { gates?: Array<{ type?: string }> }).gates;
+        const gates = step.gates as StepGate[] | undefined;
         if (gates && gates.length > 0) {
           for (const gate of gates) {
             // F16: Handle safety gate via injected callback
@@ -1126,11 +1148,12 @@ export class PipelineExecutor {
   ): Promise<{ artifact: Artifact; costUsd?: number } | null> {
     let resolvedInputs = await this.resolveInputs(step.inputs);
     const stepExt = step as PipelineStep & {
-      contextRefs?: unknown;
-      route?: unknown;
-      variants?: unknown;
-      ratios?: unknown;
+      contextRefs?: Record<string, unknown>;
+      route?: RouteConfig;
+      variants?: VariantsConfig;
+      ratios?: RatioFanOutConfig;
       cache?: { mode?: string; ttlSeconds?: number };
+      gates?: StepGate[];
     };
 
     // F13: Context resolution

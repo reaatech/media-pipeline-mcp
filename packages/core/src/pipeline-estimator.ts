@@ -70,7 +70,7 @@ export class PipelineEstimator {
       }
 
       // Check for router spread warning
-      const route = (step as { route?: { candidates?: string[] } }).route;
+      const route = step.route;
       if (route?.candidates && route.candidates.length > 1) {
         warnings.push({
           stepId: step.id,

@@ -32,6 +32,7 @@ import {
   BatchExecutor,
   ContextResolver,
   createLoudnessGateEvaluator,
+  type LoudnessGate,
   RatioFanOutExecutor,
   VariantsExecutor,
 } from '@reaatech/media-pipeline-mcp-pipeline';
@@ -74,15 +75,6 @@ import {
 import { toolRegistry } from './tool-registry.js';
 import { createInboundWebhookHandler } from './webhooks/inbound.js';
 import { SubscriptionManager, WebhookDeliveryService } from './webhooks/index.js';
-
-/** Structural shape of a provider that may expose the optional `estimateCost` method. */
-interface ProviderWithEstimateCost {
-  estimateCost?: (input: {
-    operation: string;
-    params: Record<string, unknown>;
-    config: Record<string, unknown>;
-  }) => Promise<{ costUsd: number; estimatedDurationMs?: number; currency?: string }>;
-}
 
 /** Shape returned by all `handle*` methods — an MCP CallToolResult with extra fields. */
 type ToolHandlerResult = {
@@ -392,7 +384,7 @@ export class MCPServer {
           // 'cheapest-acceptable' meaningless (everyone tied). Now we ask each
           // candidate's provider what *they* think a call costs given the inputs.
           estimateCost: async (candidate: RouteCandidate, routerInputs: ProviderInput) => {
-            const p = getProviderByName(candidate.provider) as unknown as ProviderWithEstimateCost;
+            const p = getProviderByName(candidate.provider);
             if (!p || typeof p.estimateCost !== 'function') {
               return { costUsd: 0, currency: 'USD' };
             }
@@ -427,7 +419,7 @@ export class MCPServer {
           // enforce its <5000ms eligibility rule (§F8). Without this every fastest
           // route throws RouterFastestIneligibleError on the first candidate.
           expectedDurationMs: (candidate: RouteCandidate, routerInputs: ProviderInput) => {
-            const p = getProviderByName(candidate.provider) as unknown as ProviderWithEstimateCost;
+            const p = getProviderByName(candidate.provider);
             if (!p || typeof p.estimateCost !== 'function') return undefined;
             // The provider's estimateCost result carries estimatedDurationMs. We can't
             // call it sync, so use the cached value from a recent estimate cycle. The
@@ -600,7 +592,7 @@ export class MCPServer {
           // Ratio fan-out multiplies this by the number of native renders so the
           // upstream cost telemetry needs to be accurate.
           estimateCost: async (input: ProviderInput) => {
-            const providerEst = provider as unknown as ProviderWithEstimateCost;
+            const providerEst = provider;
             if (typeof providerEst.estimateCost === 'function') {
               try {
                 const est = await providerEst.estimateCost(input);
@@ -655,7 +647,7 @@ export class MCPServer {
       // real artifact id (was previously a fs path leaking into downstream metadata).
       gateEvalFn: async (params) => {
         const { gate, artifact, artifactUri } = params;
-        if ((gate as { type?: string }).type !== 'loudness') return null;
+        if (gate.type !== 'loudness') return null;
 
         const os = await import('node:os');
         const fs = await import('node:fs');
@@ -679,10 +671,7 @@ export class MCPServer {
           }
           fs.writeFileSync(tempInputPath, inputBytes);
 
-          const verdict = await evaluator.evaluate(
-            tempInputPath,
-            gate as Parameters<typeof evaluator.evaluate>[1],
-          );
+          const verdict = await evaluator.evaluate(tempInputPath, gate as LoudnessGate);
           if (verdict.status === 'within-tolerance') {
             return { passed: true, action: 'warn' };
           }
@@ -1139,7 +1128,7 @@ export class MCPServer {
   private async dispatchTool(
     name: string,
     args: Record<string, unknown>,
-    _extra: unknown,
+    _extra: Record<string, unknown>,
   ): Promise<ToolHandlerResult> {
     // Phase 2: F1 Idempotency check
     // Resolves: lookup-existing, body-mismatch, in-flight conflict, completed replay,
@@ -1561,7 +1550,7 @@ export class MCPServer {
       // (legacy mocks); the budget tracker handles best-effort allowances. Spec §F4 says
       // EstimateUnsupportedError → skip preflight, log; we treat "no estimator" the same way.
       let estimatedCost = 0.01;
-      const providerEst = provider as unknown as ProviderWithEstimateCost;
+      const providerEst = provider;
       if (typeof providerEst.estimateCost === 'function') {
         try {
           const est = await providerEst.estimateCost({ operation, params: inputs, config });
@@ -2001,7 +1990,7 @@ export class MCPServer {
 
   // F15: Batch pipeline handlers
   private async handleBatchStart(args: {
-    pipeline: unknown;
+    pipeline: PipelineDefinition;
     source: BatchSource;
     concurrency?: number;
     onRowFailure?: string;

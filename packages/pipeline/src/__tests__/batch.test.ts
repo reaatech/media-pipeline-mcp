@@ -1,6 +1,12 @@
+import type { PipelineDefinition } from '@reaatech/media-pipeline-mcp-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BatchReportRow, RowExecutorResult } from '../batch.js';
 import { BatchExecutor, interpolateRow } from '../batch.js';
+
+const MIN_PIPELINE: PipelineDefinition = {
+  id: 'test-pipeline',
+  steps: [{ id: 's1', operation: 'test', inputs: {}, config: {} }],
+};
 
 describe('BatchExecutor', () => {
   afterEach(() => {
@@ -9,7 +15,7 @@ describe('BatchExecutor', () => {
 
   function createExecutor(
     mockFn?: (
-      pipeline: unknown,
+      pipeline: PipelineDefinition,
       row: Record<string, unknown>,
       batchId: string,
     ) => Promise<RowExecutorResult>,
@@ -44,7 +50,7 @@ describe('BatchExecutor', () => {
     const { executor, executeRow } = createExecutor();
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }, { prompt: 'b' }, { prompt: 'c' }] },
     });
 
@@ -68,7 +74,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }, { prompt: 'b' }, { prompt: 'c' }] },
       onRowFailure: 'continue',
     });
@@ -90,7 +96,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }, { prompt: 'b' }, { prompt: 'c' }] },
       onRowFailure: 'stop',
       // Pin concurrency=1 so the test deterministically observes row 0 succeed,
@@ -120,7 +126,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }] },
       onRowFailure: 'continue',
     });
@@ -156,7 +162,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: {
         type: 'inline',
         rows: [{ prompt: 0 }, { prompt: 1 }, { prompt: 2 }, { prompt: 3 }, { prompt: 4 }],
@@ -184,7 +190,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ p: 'a' }, { p: 'b' }, { p: 'c' }] },
       concurrency: 1,
     });
@@ -218,7 +224,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }, { prompt: 'b' }] },
     });
 
@@ -248,7 +254,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: {
         type: 'csv',
         rows: 'prompt,steps\nsunset,20\nocean,15',
@@ -280,7 +286,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: {
         type: 'jsonl',
         rows: '{"prompt":"sunset","steps":20}\n{"prompt":"ocean","steps":15}',
@@ -320,7 +326,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }, { prompt: 'b' }] },
     });
 
@@ -341,7 +347,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ p: 'a' }, { p: 'b' }, { p: 'c' }, { p: 'd' }] },
       concurrency: 1,
       perRunBudget: { maxUsd: 0.05, onExceed: 'abort' },
@@ -364,7 +370,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ p: 'a' }, { p: 'b' }, { p: 'c' }, { p: 'd' }] },
       concurrency: 1,
       perRunBudget: { maxUsd: 0.05, onExceed: 'suspend' },
@@ -386,7 +392,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ prompt: 'a' }, { prompt: 'b' }] },
       onRowFailure: 'retry-once',
     });
@@ -411,7 +417,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: {
         type: 'csv',
         rows: 'input_prompt,num_steps\nsunset,20',
@@ -438,7 +444,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor();
 
     const startResult = await executor.start({
-      pipeline: { id: 'test' },
+      pipeline: { id: 'test', steps: [{ id: 's1', operation: 'test', inputs: {}, config: {} }] },
       source: { type: 'inline', rows: [{ a: 1 }] },
     });
 
@@ -458,7 +464,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor(mockFn);
 
     const result = await executor.start({
-      pipeline: { id: 'test-pipeline' },
+      pipeline: MIN_PIPELINE,
       source: { type: 'inline', rows: [{ p: 'a' }, { p: 'b' }] },
     });
 
@@ -490,7 +496,7 @@ describe('BatchExecutor', () => {
     const { executor } = createExecutor();
 
     const startResult = await executor.start({
-      pipeline: { id: 'test' },
+      pipeline: { id: 'test', steps: [{ id: 's1', operation: 'test', inputs: {}, config: {} }] },
       source: { type: 'inline', rows: [{ a: 1 }] },
     });
 
@@ -571,7 +577,7 @@ describe('F15 interpolateRow — {{column}} substitution', () => {
     });
 
     const start = executor.start({
-      pipeline: { id: 'p' },
+      pipeline: { id: 'p', steps: [{ id: 's1', operation: 'test', inputs: {}, config: {} }] },
       source: { type: 'inline', rows: [{ x: 1 }, { x: 2 }, { x: 3 }] },
       // concurrency omitted on purpose — default must be ≥3 to admit all rows.
     });
@@ -594,7 +600,7 @@ describe('F15 interpolateRow — {{column}} substitution', () => {
     });
 
     const { batchId } = await executor.start({
-      pipeline: { id: 'p' },
+      pipeline: { id: 'p', steps: [{ id: 's1', operation: 'test', inputs: {}, config: {} }] },
       source: { type: 'inline', rows: [{ a: 1 }, { a: 2 }] },
     });
 
@@ -624,7 +630,15 @@ describe('F15 interpolateRow — {{column}} substitution', () => {
 
     await executor.start({
       pipeline: {
-        steps: [{ id: 's1', operation: 'image.generate', inputs: { prompt: 'hero {{topic}}' } }],
+        id: 'test-pipeline',
+        steps: [
+          {
+            id: 's1',
+            operation: 'image.generate',
+            inputs: { prompt: 'hero {{topic}}' },
+            config: {},
+          },
+        ],
       },
       source: { type: 'inline', rows: [{ topic: 'sunset' }] },
     });

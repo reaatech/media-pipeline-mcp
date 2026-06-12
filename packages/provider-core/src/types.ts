@@ -40,7 +40,7 @@ export interface CacheConfig {
 export interface CacheEntry {
   key: string;
   artifactIds: string[];
-  outputs: Record<string, unknown>;
+  outputs: ProviderOutput;
   costUsd: number;
   createdAt: string;
   expiresAt: string;

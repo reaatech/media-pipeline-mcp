@@ -101,7 +101,7 @@ export abstract class MediaProvider {
           // F2 spec: cache hit is free. Rebate costUsd to 0 so the cost ledger
           // doesn't double-charge for cached responses. The original cost is preserved
           // in `cached.costUsd` for analytics.
-          const out = ProviderOutputFromCacheEntry(cached, cached.outputs);
+          const out = cached.outputs;
           return {
             ...out,
             costUsd: 0,
@@ -120,7 +120,7 @@ export abstract class MediaProvider {
     this.cacheStore.set(cacheKey, {
       key: cacheKey,
       artifactIds: [],
-      outputs: result as unknown as Record<string, unknown>,
+      outputs: result,
       costUsd: result.costUsd ?? 0,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
@@ -322,13 +322,6 @@ export abstract class MediaProvider {
 
     return uri;
   }
-}
-
-function ProviderOutputFromCacheEntry(
-  _entry: CacheEntry,
-  outputs: Record<string, unknown>,
-): ProviderOutput {
-  return outputs as unknown as ProviderOutput;
 }
 
 export function defineProvider<T extends MediaProvider>(

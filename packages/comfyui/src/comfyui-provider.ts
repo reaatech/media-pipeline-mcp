@@ -29,7 +29,7 @@ export interface ComfyParamSpec {
   path: string;
   type: 'string' | 'number' | 'boolean' | 'enum';
   enum?: string[];
-  default?: unknown;
+  default?: string | number | boolean;
   required?: boolean;
 }
 
@@ -48,7 +48,7 @@ interface ComfyPromptResponse {
 
 interface ComfyHistoryResponse {
   [promptId: string]: {
-    prompt: unknown;
+    prompt: Record<string, unknown>;
     outputs: Record<string, ComfyNodeOutput>;
     status: { completed: boolean; status_str?: string };
   };

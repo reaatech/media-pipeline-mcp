@@ -133,9 +133,7 @@ export class ArtifactResourceHandler {
     }
 
     const buf =
-      artifact.data instanceof Buffer
-        ? artifact.data
-        : Buffer.from(JSON.stringify(artifact.data as unknown));
+      artifact.data instanceof Buffer ? artifact.data : Buffer.from(JSON.stringify(artifact.data));
     const mimeType = artifact.meta.mimeType;
     const size = buf.length;
     const inlineMax = this.config.inlineMaxBytes ?? DEFAULT_INLINE_MAX_BYTES;
