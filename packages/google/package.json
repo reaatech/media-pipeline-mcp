@@ -42,9 +42,9 @@
     "@reaatech/media-pipeline-mcp-provider-core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.1"
+    "vitest": "^4.1.9"
   }
 }
