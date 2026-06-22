@@ -39,7 +39,7 @@
     "@reaatech/media-pipeline-mcp-core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.0.0",
     "debug": "^4.4.3",
     "ioredis": "^5.4.1",
     "tsup": "^8.0.0",
