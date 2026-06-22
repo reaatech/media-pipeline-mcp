@@ -41,7 +41,7 @@
     "@reaatech/media-pipeline-mcp-provider-core": "workspace:*",
     "@reaatech/media-pipeline-mcp-storage": "workspace:*",
     "sharp": "^0.34.5",
-    "uuid": "^9.0.1",
+    "uuid": "^14.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
