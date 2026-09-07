@@ -43,7 +43,7 @@
     "uuid": "^9.0.0"
   },
   "peerDependencies": {
-    "ws": "^8.20.1",
+    "ws": "^8.21.3",
     "@google-cloud/speech": "^6.0.0"
   },
   "peerDependenciesMeta": {
@@ -61,6 +61,6 @@
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1",
-    "ws": "^8.20.1"
+    "ws": "^8.21.3"
   }
 }
